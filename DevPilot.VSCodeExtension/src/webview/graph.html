@@ -1,0 +1,1517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DevPilot Knowledge Graph & Modernization Engine</title>
+    <!-- Use D3 from CDN for graph visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+    <style>
+        :root {
+            --bg-color: var(--vscode-sideBar-background, #1e1e1e);
+            --fg-color: var(--vscode-sideBar-foreground, #cccccc);
+            --border-color: var(--vscode-divider, #3c3c3c);
+            --header-bg: var(--vscode-sideBarSectionHeader-background, #252526);
+            --accent-color: var(--vscode-button-background, #007acc);
+            --accent-hover: var(--vscode-button-hoverBackground, #0062a3);
+            --input-bg: var(--vscode-input-background, #3c3c3c);
+            --input-fg: var(--vscode-input-foreground, #cccccc);
+            --list-hover-bg: var(--vscode-list-hoverBackground, #2a2d2e);
+            --card-bg: rgba(255, 255, 255, 0.03);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --font-family: var(--vscode-font-family, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif);
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--fg-color);
+            font-family: var(--font-family);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+
+        /* Tabs Header */
+        .tabs {
+            display: flex;
+            background-color: var(--header-bg);
+            border-bottom: 1px solid var(--border-color);
+            padding: 0 8px;
+            overflow-x: auto;
+        }
+
+        .tab-btn {
+            background: none;
+            border: none;
+            color: var(--fg-color);
+            padding: 10px 14px;
+            font-size: 12px;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            opacity: 0.7;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .tab-btn:hover {
+            opacity: 1;
+            background-color: var(--list-hover-bg);
+        }
+
+        .tab-btn.active {
+            opacity: 1;
+            border-bottom-color: var(--accent-color);
+            font-weight: 600;
+        }
+
+        /* Content Areas */
+        .tab-content {
+            flex: 1;
+            display: none;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .tab-content.active {
+            display: flex;
+        }
+
+        /* Search & Controls */
+        .controls-bar {
+            display: flex;
+            gap: 8px;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.15);
+            border-bottom: 1px solid var(--border-color);
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .search-input {
+            flex: 1;
+            background-color: var(--input-bg);
+            color: var(--input-fg);
+            border: 1px solid var(--border-color);
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            outline: none;
+            min-width: 80px;
+        }
+
+        .search-input:focus {
+            border-color: var(--accent-color);
+        }
+
+        .select-input {
+            background-color: var(--input-bg);
+            color: var(--input-fg);
+            border: 1px solid var(--border-color);
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            outline: none;
+        }
+
+        .btn {
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background 0.2s;
+            white-space: nowrap;
+        }
+
+        .btn:hover {
+            background-color: var(--accent-hover);
+        }
+
+        .btn-secondary {
+            background-color: var(--input-bg);
+            color: var(--input-fg);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-secondary:hover {
+            background-color: var(--list-hover-bg);
+        }
+
+        /* Table view */
+        .table-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 8px 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        th {
+            font-weight: 600;
+            background: rgba(0, 0, 0, 0.15);
+        }
+
+        tr:hover td {
+            background-color: var(--list-hover-bg);
+        }
+
+        /* Graph visualization container */
+        #graph-svg-container {
+            flex: 1;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.05);
+            position: relative;
+        }
+
+        svg {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .node circle {
+            stroke: #fff;
+            stroke-width: 1.5px;
+            cursor: pointer;
+            transition: r 0.2s ease;
+        }
+
+        .node circle:hover {
+            r: 10px;
+        }
+
+        .node text {
+            font-size: 10px;
+            fill: var(--fg-color);
+            pointer-events: none;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+        }
+
+        .link {
+            stroke: #999;
+            stroke-opacity: 0.6;
+            stroke-width: 1.5px;
+            fill: none;
+        }
+
+        /* Lineage timeline style */
+        .lineage-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+        }
+
+        .timeline {
+            position: relative;
+            max-width: 600px;
+            margin: 0 auto;
+            padding-left: 20px;
+        }
+
+        .timeline::after {
+            content: '';
+            position: absolute;
+            width: 2px;
+            background-color: var(--border-color);
+            top: 0;
+            bottom: 0;
+            left: 7px;
+            margin-left: -1px;
+        }
+
+        .timeline-item {
+            padding: 10px 14px;
+            position: relative;
+            background-color: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 6px;
+            margin-bottom: 12px;
+            transition: all 0.2s ease;
+        }
+
+        .timeline-item:hover {
+            border-color: var(--accent-color);
+            transform: translateX(4px);
+        }
+
+        .timeline-item::after {
+            content: '';
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            left: -17px;
+            background-color: var(--bg-color);
+            border: 2px solid var(--accent-color);
+            top: 14px;
+            border-radius: 50%;
+            z-index: 1;
+        }
+
+        .timeline-item.origin::after {
+            background-color: var(--accent-color);
+            box-shadow: 0 0 6px var(--accent-color);
+        }
+
+        .timeline-title {
+            font-weight: 600;
+            font-size: 13px;
+            margin-bottom: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .timeline-badge {
+            font-size: 9px;
+            padding: 2px 6px;
+            border-radius: 10px;
+            background: var(--accent-color);
+            color: #fff;
+        }
+
+        .timeline-meta {
+            font-size: 10px;
+            opacity: 0.6;
+            margin-top: 4px;
+        }
+
+        .timeline-edge {
+            font-style: italic;
+            font-size: 11px;
+            color: var(--accent-color);
+            margin: -6px 0 6px 10px;
+            position: relative;
+        }
+
+        .timeline-edge::before {
+            content: '↓';
+            position: absolute;
+            left: -15px;
+        }
+
+        /* Tooltip style */
+        .tooltip {
+            position: absolute;
+            padding: 8px 12px;
+            background: rgba(0, 0, 0, 0.85);
+            color: #fff;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 4px;
+            font-size: 11px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+            z-index: 100;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+        }
+
+        /* Color definitions for Node Kinds */
+        .kind-color-Repository { fill: #4a90e2; stroke: #4a90e2; }
+        .kind-color-File { fill: #f5a623; stroke: #f5a623; }
+        .kind-color-Symbol { fill: #7ed321; stroke: #7ed321; }
+        .kind-color-Workflow { fill: #bd10e0; stroke: #bd10e0; }
+        .kind-color-Task { fill: #9013fe; stroke: #9013fe; }
+        .kind-color-ExecutionPipeline { fill: #50e3c2; stroke: #50e3c2; }
+        .kind-color-Diagnostic { fill: #d0021b; stroke: #d0021b; }
+        .kind-color-Failure { fill: #ff4d4f; stroke: #ff4d4f; }
+        .kind-color-Patch { fill: #f8e71c; stroke: #f8e71c; }
+        .kind-color-MemoryEvent { fill: #b8e986; stroke: #b8e986; }
+
+        .legend {
+            position: absolute;
+            bottom: 12px;
+            right: 12px;
+            background: rgba(0,0,0,0.6);
+            padding: 8px 12px;
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+            font-size: 9px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+            pointer-events: none;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .legend-color {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        .placeholder-text {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            opacity: 0.6;
+            font-style: italic;
+            font-size: 12px;
+            text-align: center;
+            padding: 24px;
+        }
+
+        /* Reasoning tab premium layout */
+        .reasoning-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 16px;
+            padding: 16px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .reasoning-card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 6px;
+            padding: 12px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+            margin-bottom: 12px;
+        }
+
+        .reasoning-card-header {
+            font-weight: 600;
+            font-size: 13px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 6px;
+            margin-bottom: 10px;
+            color: var(--accent-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .reasoning-card-subtitle {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            opacity: 0.6;
+            margin-bottom: 8px;
+        }
+
+        .evidence-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 0;
+            font-size: 11px;
+            border-bottom: 1px solid rgba(255,255,255,0.03);
+        }
+
+        .evidence-desc {
+            flex: 1;
+            padding-right: 12px;
+        }
+
+        .evidence-score {
+            font-weight: 600;
+            color: #7ed321;
+        }
+
+        .action-item {
+            background: rgba(0, 122, 204, 0.08);
+            border-left: 3px solid var(--accent-color);
+            padding: 6px 10px;
+            margin: 6px 0;
+            font-size: 11px;
+            border-radius: 0 4px 4px 0;
+        }
+
+        /* Architecture Map Layout */
+        .layer-box {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px dashed var(--border-color);
+            border-radius: 4px;
+            padding: 8px;
+            margin-bottom: 8px;
+            text-align: center;
+        }
+
+        .layer-box.critical {
+            border-color: #ff4d4f;
+            background: rgba(255, 77, 79, 0.05);
+        }
+    </style>
+</head>
+<body>
+    <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('graph')">Dependency Graph</button>
+        <button class="tab-btn" onclick="switchTab('relations')">Relationships</button>
+        <button class="tab-btn" onclick="switchTab('lineage')">Lineage Explorer</button>
+        <button class="tab-btn" onclick="switchTab('reasoning')">Reasoning Engine</button>
+        <button class="tab-btn" onclick="switchTab('modernization')">Modernization</button>
+        <button class="tab-btn" onclick="switchTab('productization')">Productization</button>
+    </div>
+
+    <!-- GRAPH TAB -->
+    <div id="tab-graph" class="tab-content active">
+        <div class="controls-bar">
+            <input type="text" id="graph-search" class="search-input" placeholder="Search nodes in graph...">
+            <button class="btn" onclick="triggerGraphQuery()">Refresh</button>
+        </div>
+        <div id="graph-svg-container">
+            <svg id="graph-svg"></svg>
+            <div class="legend">
+                <div class="legend-item"><div class="legend-color kind-color-Repository"></div>Repository</div>
+                <div class="legend-item"><div class="legend-color kind-color-File"></div>File</div>
+                <div class="legend-item"><div class="legend-color kind-color-Symbol"></div>Symbol</div>
+                <div class="legend-item"><div class="legend-color kind-color-Workflow"></div>Workflow</div>
+                <div class="legend-item"><div class="legend-color kind-color-Task"></div>Task</div>
+                <div class="legend-item"><div class="legend-color kind-color-ExecutionPipeline"></div>Pipeline</div>
+                <div class="legend-item"><div class="legend-color kind-color-Diagnostic"></div>Diagnostic</div>
+                <div class="legend-item"><div class="legend-color kind-color-Failure"></div>Failure</div>
+                <div class="legend-item"><div class="legend-color kind-color-Patch"></div>Patch</div>
+                <div class="legend-item"><div class="legend-color kind-color-MemoryEvent"></div>Memory Event</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- RELATIONSHIPS TAB -->
+    <div id="tab-relations" class="tab-content">
+        <div class="controls-bar">
+            <input type="text" id="relations-search" class="search-input" placeholder="Filter relationships...">
+        </div>
+        <div class="table-container">
+            <table id="relations-table">
+                <thead>
+                    <tr>
+                        <th>Source Node</th>
+                        <th>Relationship Type</th>
+                        <th>Target Node</th>
+                    </tr>
+                </thead>
+                <tbody id="relations-body">
+                    <tr>
+                        <td colspan="3"><div class="placeholder-text">No relationships loaded. Click a node in the graph to inspect relationships.</div></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- LINEAGE TAB -->
+    <div id="tab-lineage" class="tab-content">
+        <div class="controls-bar">
+            <input type="text" id="lineage-node-id" class="search-input" placeholder="Enter node ID to trace lineage...">
+            <button class="btn" onclick="triggerLineageTrace()">Trace Lineage</button>
+        </div>
+        <div class="lineage-container">
+            <div id="lineage-timeline" class="timeline">
+                <div class="placeholder-text">No lineage chain traced. Enter a node ID or select a node in the graph to begin.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- REASONING ENGINE TAB -->
+    <div id="tab-reasoning" class="tab-content">
+        <div class="controls-bar">
+            <input type="text" id="reasoning-failure-id" class="search-input" placeholder="Enter Failure/Diagnostic ID...">
+            <button class="btn" onclick="triggerRootCauseAnalysis()">Attribute Failure</button>
+        </div>
+        
+        <div class="reasoning-grid" id="reasoning-container">
+            <div class="placeholder-text">Enter a failure node ID above or select a diagnostic node in the graph to activate explainable reasoning.</div>
+        </div>
+    </div>
+
+    <!-- MODERNIZATION TAB -->
+    <div id="tab-modernization" class="tab-content">
+        <div class="controls-bar">
+            <select id="mod-type" class="select-input">
+                <option value="0">.NET Framework Upgrade</option>
+                <option value="1">Package Migration</option>
+                <option value="2">Auth Protocol Migration</option>
+                <option value="3">API Modernization</option>
+                <option value="4">Framework Swap</option>
+                <option value="5">Dependency Cleanup</option>
+            </select>
+            <input type="text" id="mod-payload" class="search-input" placeholder="e.g. 8.0 or Newtonsoft.Json">
+            <button class="btn" onclick="triggerModernizationPlan()">Generate Plan</button>
+        </div>
+
+        <div class="reasoning-grid" id="modernization-container">
+            <div class="placeholder-text">Configure a modernization target above and click 'Generate Plan' to compile a safe, rollback-aware roadmap.</div>
+        </div>
+    </div>
+
+    <!-- PRODUCTIZATION TAB -->
+    <div id="tab-productization" class="tab-content" style="overflow-y: auto;">
+        <div class="reasoning-grid">
+            <!-- 1. Settings management -->
+            <div class="reasoning-card">
+                <div class="reasoning-card-header">System Settings Manager</div>
+                <div class="reasoning-card-subtitle">Local Configuration & Paths</div>
+                <div style="display: flex; flex-direction: column; gap: 10px; font-size: 11px;">
+                    <div>
+                        <label>Model Storage Workspace Directory:</label>
+                        <input type="text" id="settings-storage-path" class="search-input" style="width: 100%; margin-top: 4px;">
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <div>
+                            <label>Active LLM Model:</label>
+                            <select id="settings-llm-model" class="select-input" style="width: 100%; margin-top: 4px;">
+                                <option value="Phi-3-Mini-Instruct-ONNX">Phi-3-Mini-Instruct-ONNX</option>
+                                <option value="Llama-3-8B-Instruct-ONNX">Llama-3-8B-Instruct-ONNX</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label>Active Embedding Model:</label>
+                            <select id="settings-emb-model" class="select-input" style="width: 100%; margin-top: 4px;">
+                                <option value="All-MiniLM-L6-v2-ONNX">All-MiniLM-L6-v2-ONNX</option>
+                                <option value="BGE-Small-v1.5-ONNX">BGE-Small-v1.5-ONNX</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <div>
+                            <label>Hardware Provider Preference:</label>
+                            <select id="settings-provider" class="select-input" style="width: 100%; margin-top: 4px;">
+                                <option value="DirectML">DirectML (GPU Acceleration)</option>
+                                <option value="CPU">CPU Engine</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label>Logging Threshold:</label>
+                            <select id="settings-log-level" class="select-input" style="width: 100%; margin-top: 4px;">
+                                <option value="Information">Information</option>
+                                <option value="Warning">Warning</option>
+                                <option value="Error">Error</option>
+                                <option value="Debug">Debug</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button class="btn" onclick="saveSettings()" style="margin-top: 10px; align-self: flex-start;">Save Configuration</button>
+                </div>
+            </div>
+
+            <!-- 2. Model downloader -->
+            <div class="reasoning-card">
+                <div class="reasoning-card-header">Model Workspace Cache</div>
+                <div class="reasoning-card-subtitle">Inference Models Manager</div>
+                <div id="models-list-container" style="display: flex; flex-direction: column; gap: 8px;">
+                    <div class="placeholder-text">Loading model directory statuses...</div>
+                </div>
+            </div>
+
+            <!-- 3. Dependency validator -->
+            <div class="reasoning-card">
+                <div class="reasoning-card-header">Dependency Bootstrapper Verification</div>
+                <div class="reasoning-card-subtitle">Offline-First Diagnostic Audits</div>
+                <div id="dependencies-container" style="display: flex; flex-direction: column; gap: 8px;">
+                    <div class="placeholder-text">Checking system dependencies...</div>
+                </div>
+            </div>
+
+            <!-- 4. Diagnostics panel -->
+            <div class="reasoning-card">
+                <div class="reasoning-card-header">Core Runtime Performance & Setup</div>
+                <div class="reasoning-card-subtitle">Live Speed Metrics & OTA Updates</div>
+                <div style="display: flex; flex-direction: column; gap: 8px; font-size: 11px;">
+                    <div class="evidence-row">
+                        <div class="evidence-desc">LLM Token Generation Speed</div>
+                        <div class="evidence-score" id="diag-token-speed">-- tokens/s</div>
+                    </div>
+                    <div class="evidence-row">
+                        <div class="evidence-desc">Peak Working Set RAM Footprint</div>
+                        <div class="evidence-score" id="diag-peak-ram" style="color: #4a90e2;">-- MB</div>
+                    </div>
+                    <div class="evidence-row">
+                        <div class="evidence-desc">Active Processing Device Target</div>
+                        <div id="diag-device-target" style="font-weight: 500;">Detecting...</div>
+                    </div>
+                    <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 6px 0;">
+                    <div class="evidence-row">
+                        <div class="evidence-desc">Onboarding Wizard Status</div>
+                        <div id="onboard-status-badge" style="font-weight: 600;">--</div>
+                    </div>
+                    <div id="onboard-wizard-controls" style="display: none;">
+                        <div style="font-size: 10px; opacity: 0.8; margin-bottom: 4px;" id="onboard-hardware-details">--</div>
+                        <button class="btn btn-secondary" onclick="completeOnboardingFlow()" style="padding: 4px 8px; font-size: 10px;">Mark Setup Completed</button>
+                    </div>
+                    <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 6px 0;">
+                    <div class="evidence-row">
+                        <div class="evidence-desc">Update Manager Status</div>
+                        <div id="update-manager-badge" style="font-weight: 600;">Checking...</div>
+                    </div>
+                    <div id="update-details-box" style="display: none; background: rgba(255, 255, 255, 0.02); padding: 8px; border-radius: 4px; border: 1px solid var(--border-color);">
+                        <div style="font-weight: 600; color: var(--accent-color);">Update 1.1.0 Available!</div>
+                        <div style="font-size: 10px; margin: 4px 0 8px 0;" id="update-release-notes">--</div>
+                        <button class="btn" onclick="applyUpdate()" style="padding: 4px 8px; font-size: 10px;">Apply Staged OTA Update</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 5. Real-time System Logs -->
+            <div class="reasoning-card">
+                <div class="reasoning-card-header">System Diagnostics Logs</div>
+                <div class="reasoning-card-subtitle">Background Console Event Viewer</div>
+                <div id="logs-container" style="background: rgba(0, 0, 0, 0.2); padding: 8px; border-radius: 4px; font-family: monospace; font-size: 10px; max-height: 250px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; border: 1px solid var(--border-color);">
+                    <div style="color: #888;">Initializing logs console feed...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="tooltip" class="tooltip"></div>
+
+    <script>
+        const vscode = acquireVsCodeApi();
+        let activeTab = 'graph';
+        let graphData = { nodes: [], relationships: [] };
+        
+        // Handle VS Code extension messages
+        window.addEventListener('message', event => {
+            const message = event.data;
+            switch (message.type) {
+                case 'setGraphData':
+                    graphData = message.data;
+                    renderGraph(graphData);
+                    populateRelationshipsTable(graphData.relationships);
+                    break;
+                case 'setLineageData':
+                    renderLineage(message.data);
+                    break;
+                case 'setSelectedNode':
+                    if (message.nodeId) {
+                        highlightNode(message.nodeId);
+                    }
+                    break;
+                case 'setRootCauseResult':
+                    renderRootCause(message.data);
+                    break;
+                case 'setCorrelationData':
+                    renderCorrelations(message.data);
+                    break;
+                case 'setAttributionResult':
+                    renderFailureAttribution(message.data);
+                    break;
+                case 'setPatchImpactData':
+                    renderPatchImpact(message.data);
+                    break;
+                case 'setFailureLineageData':
+                    renderFailureLineage(message.data);
+                    break;
+                case 'setArchitectureSummary':
+                    renderArchitectureAnalysis(message.data);
+                    break;
+                case 'setModernizationPlan':
+                    renderModernizationDashboard(message.data);
+                    break;
+                case 'setModernizationImpact':
+                    renderDependencyImpact(message.data);
+                    break;
+                case 'setProductSettings':
+                    renderProductSettings(message.data);
+                    break;
+                case 'setProductModels':
+                    renderProductModels(message.data);
+                    break;
+                case 'setProductDependencies':
+                    renderProductDependencies(message.data);
+                    break;
+                case 'setProductDiagnostics':
+                    renderProductDiagnostics(message.data);
+                    break;
+                case 'setProductOnboarding':
+                    renderProductOnboarding(message.data);
+                    break;
+                case 'setProductUpdates':
+                    renderProductUpdates(message.data);
+                    break;
+                case 'setProductLogs':
+                    renderProductLogs(message.data);
+                    break;
+            }
+        });
+
+        // Tab Switching
+        function switchTab(tabName) {
+            activeTab = tabName;
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById(`tab-${tabName}`).classList.add('active');
+
+            if (tabName === 'graph' && graphData.nodes.length > 0) {
+                renderGraph(graphData);
+            }
+            if (tabName === 'reasoning') {
+                vscode.postMessage({ type: 'getCorrelations' });
+                vscode.postMessage({ type: 'getArchitectureAnalysis' });
+            }
+            if (tabName === 'productization') {
+                vscode.postMessage({ type: 'getProductSettings' });
+                vscode.postMessage({ type: 'getProductModels' });
+                vscode.postMessage({ type: 'getProductDependencies' });
+                vscode.postMessage({ type: 'getProductDiagnostics' });
+                vscode.postMessage({ type: 'getProductOnboarding' });
+                vscode.postMessage({ type: 'getProductUpdates' });
+                vscode.postMessage({ type: 'getProductLogs' });
+            }
+        }
+
+        // SVG Force Directed Graph using D3
+        let svg, simulation, link, node;
+        
+        function renderGraph(data) {
+            const container = document.getElementById('graph-svg-container');
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+
+            d3.select("#graph-svg").selectAll("*").remove();
+            
+            svg = d3.select("#graph-svg")
+                .attr("viewBox", [0, 0, width, height]);
+
+            // Add zooming behavior
+            const zoom = d3.zoom()
+                .scaleExtent([0.1, 8])
+                .on("zoom", (event) => {
+                    g.attr("transform", event.transform);
+                });
+
+            svg.call(zoom);
+
+            const g = svg.append("g");
+
+            const links = data.relationships.map(d => ({
+                source: d.sourceNodeId,
+                target: d.targetNodeId,
+                kind: d.kind
+            }));
+
+            const nodes = data.nodes.map(d => ({
+                id: d.nodeId,
+                label: d.label,
+                kind: d.kind,
+                metadata: d.metadata
+            }));
+
+            // Filter out links that reference missing nodes
+            const nodeIds = new Set(nodes.map(n => n.id));
+            const filteredLinks = links.filter(l => nodeIds.has(l.source) && nodeIds.has(l.target));
+
+            simulation = d3.forceSimulation(nodes)
+                .force("link", d3.forceLink(filteredLinks).id(d => d.id).distance(100))
+                .force("charge", d3.forceManyBody().strength(-200))
+                .force("center", d3.forceCenter(width / 2, height / 2))
+                .force("x", d3.forceX(width / 2).strength(0.1))
+                .force("y", d3.forceY(height / 2).strength(0.1));
+
+            // Link visual element
+            link = g.append("g")
+                .attr("class", "links")
+                .selectAll("line")
+                .data(filteredLinks)
+                .join("line")
+                .attr("class", "link");
+
+            // Node visual element
+            node = g.append("g")
+                .attr("class", "nodes")
+                .selectAll("g")
+                .data(nodes)
+                .join("g")
+                .call(drag(simulation));
+
+            // Add coloring based on node kind CSS classes
+            node.append("circle")
+                .attr("r", 6)
+                .attr("class", d => `kind-color-${d.kind}`)
+                .on("mouseover", showTooltip)
+                .on("mouseout", hideTooltip)
+                .on("click", (event, d) => {
+                    selectNode(d.id);
+                });
+
+            // Node Labels
+            node.append("text")
+                .attr("dx", 10)
+                .attr("dy", ".35em")
+                .text(d => d.label.length > 20 ? d.label.substring(0, 17) + '...' : d.label);
+
+            simulation.on("tick", () => {
+                link
+                    .attr("x1", d => d.source.x)
+                    .attr("y1", d => d.source.y)
+                    .attr("x2", d => d.target.x)
+                    .attr("y2", d => d.target.y);
+
+                node.attr("transform", d => `translate(${d.x},${d.y})`);
+            });
+
+            // Search filtering
+            d3.select("#graph-search").on("input", function() {
+                const searchVal = this.value.toLowerCase();
+                node.style("opacity", d => d.label.toLowerCase().includes(searchVal) ? 1 : 0.15);
+                link.style("opacity", d => 
+                    d.source.label.toLowerCase().includes(searchVal) || 
+                    d.target.label.toLowerCase().includes(searchVal) ? 0.6 : 0.05
+                );
+            });
+        }
+
+        // Drag handlers
+        function drag(sim) {
+            function dragstarted(event) {
+                if (!event.active) sim.alphaTarget(0.3).restart();
+                event.subject.fx = event.subject.x;
+                event.subject.fy = event.subject.y;
+            }
+            
+            function dragged(event) {
+                event.subject.fx = event.x;
+                event.subject.fy = event.y;
+            }
+            
+            function dragended(event) {
+                if (!event.active) sim.alphaTarget(0);
+                event.subject.fx = null;
+                event.subject.fy = null;
+            }
+            
+            return d3.drag()
+                .on("start", dragstarted)
+                .on("drag", dragged)
+                .on("end", dragended);
+        }
+
+        // Tooltip handlers
+        const tooltip = document.getElementById("tooltip");
+        function showTooltip(event, d) {
+            tooltip.style.opacity = 1;
+            tooltip.innerHTML = `
+                <strong>ID:</strong> ${d.id}<br/>
+                <strong>Label:</strong> ${d.label}<br/>
+                <strong>Kind:</strong> ${d.kind}<br/>
+                ${d.metadata ? `<strong>Metadata:</strong> ${d.metadata}` : ''}
+            `;
+            tooltip.style.left = (event.pageX + 10) + "px";
+            tooltip.style.top = (event.pageY + 10) + "px";
+        }
+
+        function hideTooltip() {
+            tooltip.style.opacity = 0;
+        }
+
+        // Select Node
+        function selectNode(nodeId) {
+            vscode.postMessage({ type: 'nodeSelected', nodeId: nodeId });
+            
+            // Auto fill inputs across tabs
+            document.getElementById("lineage-node-id").value = nodeId;
+            document.getElementById("reasoning-failure-id").value = nodeId;
+        }
+
+        // Highlight selected node
+        function highlightNode(nodeId) {
+            if (node) {
+                node.selectAll("circle")
+                    .attr("r", d => d.id === nodeId ? 12 : 6)
+                    .style("stroke-width", d => d.id === nodeId ? 3 : 1.5)
+                    .style("stroke", d => d.id === nodeId ? "#fff" : "#fff");
+            }
+        }
+
+        // Populate relationships table
+        function populateRelationshipsTable(rels) {
+            const tbody = document.getElementById("relations-body");
+            if (!rels || rels.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="3"><div class="placeholder-text">No relationships found.</div></td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = rels.map(r => `
+                <tr>
+                    <td style="cursor:pointer; color:var(--accent-color);" onclick="selectNode('${r.sourceNodeId}')">${r.sourceNodeId}</td>
+                    <td><span class="timeline-badge">${r.kind}</span></td>
+                    <td style="cursor:pointer; color:var(--accent-color);" onclick="selectNode('${r.targetNodeId}')">${r.targetNodeId}</td>
+                </tr>
+            `).join('');
+
+            // Relationships Filter
+            document.getElementById("relations-search").addEventListener("input", function() {
+                const query = this.value.toLowerCase();
+                const rows = tbody.querySelectorAll("tr");
+                rows.forEach(row => {
+                    row.style.display = row.innerText.toLowerCase().includes(query) ? "" : "none";
+                });
+            });
+        }
+
+        // Render Lineage Trace
+        function renderLineage(lineageData) {
+            const container = document.getElementById("lineage-timeline");
+            if (!lineageData || !lineageData.chain || lineageData.chain.length === 0) {
+                container.innerHTML = `
+                    <div class="timeline-item origin">
+                        <div class="timeline-title">${lineageData.origin.label} <span class="timeline-badge">${lineageData.origin.kind}</span></div>
+                        <div class="timeline-meta">Origin ID: ${lineageData.origin.nodeId}</div>
+                    </div>
+                    <div class="placeholder-text">No downstream or upstream lineage steps found.</div>
+                `;
+                return;
+            }
+
+            let html = `
+                <div class="timeline-item origin">
+                    <div class="timeline-title">
+                        ${lineageData.origin.label} 
+                        <span class="timeline-badge">${lineageData.origin.kind}</span>
+                    </div>
+                    <div class="timeline-meta">Origin ID: ${lineageData.origin.nodeId}</div>
+                </div>
+            `;
+
+            lineageData.chain.forEach(step => {
+                if (step.incomingEdge) {
+                    html += `<div class="timeline-edge">${step.incomingEdge.kind}</div>`;
+                }
+                html += `
+                    <div class="timeline-item" style="cursor:pointer;" onclick="selectNode('${step.node.nodeId}')">
+                        <div class="timeline-title">
+                            ${step.node.label}
+                            <span class="timeline-badge">${step.node.kind}</span>
+                        </div>
+                        <div class="timeline-meta">ID: ${step.node.nodeId}</div>
+                        ${step.node.metadata ? `<div style="font-size:11px; margin-top:4px;">${step.node.metadata}</div>` : ''}
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        // Render Root Cause Analysis
+        function renderRootCause(data) {
+            // Unused
+        }
+
+        // Render Failure Attribution Result
+        function renderFailureAttribution(data) {
+            const container = document.getElementById("reasoning-container");
+            if (!data) return;
+
+            let evidenceHtml = data.evidenceList.map(e => `
+                <div class="evidence-row">
+                    <div class="evidence-desc"><strong>[${e.nodeKind}]</strong> ${e.description}</div>
+                    <div class="evidence-score">+${e.contributionScore.toFixed(2)}</div>
+                </div>
+            `).join('');
+
+            container.innerHTML = `
+                <!-- Probable Root Cause Panel -->
+                <div class="reasoning-card">
+                    <div class="reasoning-card-header">
+                        Probable Root Cause Attribution
+                        <span class="timeline-badge" style="background:#7ed321;">${(data.confidenceScore * 100).toFixed(0)}% Confidence</span>
+                    </div>
+                    <div style="font-size:12px; margin-bottom:12px; line-height:1.4;">${data.explanation}</div>
+                    
+                    <div class="reasoning-card-subtitle">Attribution Evidence Chain</div>
+                    <div style="background:rgba(0,0,0,0.2); padding:8px; border-radius:4px;">
+                        ${evidenceHtml || '<div style="font-size:11px; opacity:0.6; padding:6px;">No evidence steps.</div>'}
+                    </div>
+                </div>
+
+                <div id="patch-impact-panel"></div>
+                <div id="failure-lineage-panel"></div>
+                <div id="architecture-analysis-panel"></div>
+            `;
+
+            if (data.attributedPatchNode) {
+                vscode.postMessage({ type: 'getPatchImpact', patchId: data.attributedPatchNode.nodeId });
+            }
+            vscode.postMessage({ type: 'getFailureLineage', failureId: data.failureNodeId });
+        }
+
+        // Render Affected Symbol Explorer
+        function renderPatchImpact(data) {
+            const panel = document.getElementById("patch-impact-panel");
+            if (!panel || !data) return;
+
+            let symbolsHtml = data.affectedSymbols.map(sym => `
+                <div class="evidence-row">
+                    <div class="evidence-desc" style="color:var(--accent-color);">
+                        ${sym.symbolLabel} <span style="font-size:9px; opacity:0.6; color:var(--fg-color);">(${sym.filePath})</span>
+                    </div>
+                    <div style="font-size:10px; font-weight:600;">${sym.impactType}</div>
+                </div>
+            `).join('');
+
+            panel.innerHTML = `
+                <div class="reasoning-card">
+                    <div class="reasoning-card-header">
+                        Affected Symbol Explorer (Blast Radius)
+                        <span class="timeline-badge" style="background:#ff4d4f;">Metric: ${data.totalBlastRadiusMetric.toFixed(1)}</span>
+                    </div>
+                    <div class="reasoning-card-subtitle">Transitive Affected Elements</div>
+                    <div style="background:rgba(0,0,0,0.2); padding:8px; border-radius:4px; max-height:200px; overflow-y:auto;">
+                        ${symbolsHtml || '<div style="font-size:11px; opacity:0.6; padding:6px;">No symbol blast-radius isolated.</div>'}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Render Execution Lineage Viewer
+        function renderFailureLineage(data) {
+            const panel = document.getElementById("failure-lineage-panel");
+            if (!panel || !data) return;
+
+            let stepsHtml = data.steps.map(step => `
+                <div class="timeline-item" style="margin-left: 10px;">
+                    <div class="timeline-title">
+                        ${step.stageName}
+                        <span class="timeline-badge" style="background:var(--accent-color);">${step.relationshipRole}</span>
+                    </div>
+                    <div class="timeline-meta">Associated: ${step.associatedNode.label} (${step.associatedNode.kind})</div>
+                </div>
+            `).join('');
+
+            panel.innerHTML = `
+                <div class="reasoning-card">
+                    <div class="reasoning-card-header">Execution Lineage Trace</div>
+                    <div class="timeline" style="margin-top: 10px;">
+                        ${stepsHtml}
+                    </div>
+                    
+                    <div class="reasoning-card-subtitle" style="margin-top:12px;">Diagnostic Logs & Compiler Insights</div>
+                    <div style="background:rgba(208,2,27,0.08); border-left: 3px solid #d0021b; padding:8px; border-radius: 0 4px 4px 0; font-size:11px;">
+                        ${data.diagnosticInsights.join('<br/>')}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Render Architecture Analysis Map & Warnings
+        function renderArchitectureAnalysis(data) {
+            const container = document.getElementById("reasoning-container");
+            if (!data) return;
+
+            const targetPanel = document.getElementById("architecture-analysis-panel") || container;
+
+            let violationsHtml = data.violations.map(v => `
+                <div class="evidence-row">
+                    <div class="evidence-desc" style="color:#ff4d4f;">
+                        <strong>${v.sourceLabel}</strong> violates dependency boundaries to <strong>${v.targetLabel}</strong>.
+                    </div>
+                    <span class="timeline-badge" style="background:#d0021b;">Bypass</span>
+                </div>
+            `).join('');
+
+            let conventionsHtml = data.conventionViolations.map(c => `
+                <div class="evidence-row">
+                    <div class="evidence-desc">
+                        <strong>${c.nodeLabel}</strong> has invalid naming conventions.
+                        <div style="font-size:9px; opacity:0.6;">Expected: ${c.expectedFormat} | Found: ${c.foundFormat}</div>
+                    </div>
+                    <span class="timeline-badge" style="background:var(--border-color); color:var(--fg-color);">${c.ruleViolated}</span>
+                </div>
+            `).join('');
+
+            let html = `
+                <div class="reasoning-card">
+                    <div class="reasoning-card-header">
+                        Architecture Layer Map
+                        <span class="timeline-badge" style="background:${data.architecturalDriftScore > 0.3 ? '#ff4d4f' : '#7ed321'};">Drift Score: ${data.architecturalDriftScore.toFixed(2)}</span>
+                    </div>
+                    <div class="reasoning-card-subtitle">Modular Layering Hierarchies</div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px;">
+                        <div class="layer-box">LocalService</div>
+                        <div class="layer-box">Core</div>
+                        <div class="layer-box">Contracts</div>
+                    </div>
+
+                    <div class="reasoning-card-subtitle">Dependency Layer Bypass Warnings</div>
+                    <div style="background:rgba(0,0,0,0.2); padding:8px; border-radius:4px; margin-bottom:12px; max-height: 150px; overflow-y:auto;">
+                        ${violationsHtml || '<div style="font-size:11px; opacity:0.6; padding:6px;">No layer bypass violations detected.</div>'}
+                    </div>
+
+                    <div class="reasoning-card-subtitle">Convention Naming Violations</div>
+                    <div style="background:rgba(0,0,0,0.2); padding:8px; border-radius:4px; max-height: 150px; overflow-y:auto;">
+                        ${conventionsHtml || '<div style="font-size:11px; opacity:0.6; padding:6px;">All coding naming style conventions are met.</div>'}
+                    </div>
+                </div>
+            `;
+
+            if (document.getElementById("architecture-analysis-panel")) {
+                document.getElementById("architecture-analysis-panel").innerHTML = html;
+            } else if (container.querySelector('.placeholder-text')) {
+                container.innerHTML += html;
+            }
+        }
+
+        // Render Modernization Workspace Dashboard
+        function renderModernizationDashboard(plan) {
+            const container = document.getElementById("modernization-container");
+            if (!plan) return;
+
+            let stepsHtml = plan.steps.map(step => `
+                <div class="evidence-row">
+                    <div class="evidence-desc">
+                        <strong>${step.title}</strong>
+                        <div style="font-size:10px; opacity:0.6; line-height:1.3;">${step.description}</div>
+                    </div>
+                    <div>
+                        ${step.completed 
+                            ? '<span class="timeline-badge" style="background:#7ed321;">Completed</span>' 
+                            : `<button class="btn" style="padding:4px 8px; font-size:10px;" onclick="runModernizationStep('${plan.planId}', '${step.stepId}')">Run Step</button>`
+                        }
+                    </div>
+                </div>
+            `).join('');
+
+            let rollbacksHtml = plan.rollbackSequence.map(seq => `
+                <div class="evidence-row" style="font-style:italic; font-size:11px;">
+                    <div>${seq}</div>
+                </div>
+            `).join('');
+
+            container.innerHTML = `
+                <!-- Modernization Dashboard -->
+                <div class="reasoning-card">
+                    <div class="reasoning-card-header">
+                        Modernization Blueprint Plan
+                        <span class="timeline-badge" style="background:var(--accent-color);">${plan.status}</span>
+                    </div>
+                    <div style="font-size:12px; margin-bottom:12px; line-height:1.4;">${plan.planExplanation}</div>
+                    <div style="font-size:11px; margin-bottom:10px;"><strong>Risk Assessment Score:</strong> ${(plan.riskScore*100).toFixed(0)}%</div>
+
+                    <!-- Progress Tracking -->
+                    <div class="reasoning-card-subtitle">Migration Checklist Progress</div>
+                    <div style="background:rgba(0,0,0,0.2); padding:8px; border-radius:4px; margin-bottom:12px;">
+                        ${stepsHtml}
+                    </div>
+
+                    <!-- Rollback Sequence Plan -->
+                    <div class="reasoning-card-subtitle">Rollback Safety Procedures</div>
+                    <div style="background:rgba(0,0,0,0.2); padding:8px; border-radius:4px; margin-bottom:12px;">
+                        ${rollbacksHtml}
+                    </div>
+
+                    <!-- Controls -->
+                    <div style="display:flex; gap:8px;">
+                        ${plan.status === 'Planned' 
+                            ? `<button class="btn" onclick="approveModernizationPlan('${plan.planId}')">Approve Plan</button>` 
+                            : ''
+                        }
+                        <button class="btn btn-secondary" onclick="rollbackModernizationPlan('${plan.planId}')">Rollback Staged Edits</button>
+                    </div>
+                </div>
+
+                <div id="dependency-impact-panel"></div>
+            `;
+
+            // Query package dependency impact maps
+            vscode.postMessage({
+                type: 'getModernizationImpact',
+                modType: parseInt(document.getElementById("mod-type").value),
+                payload: document.getElementById("mod-payload").value.trim()
+            });
+        }
+
+        // Render Dependency Impact Viewer
+        function renderDependencyImpact(impacts) {
+            const panel = document.getElementById("dependency-impact-panel");
+            if (!panel || !impacts) return;
+
+            let impactsHtml = impacts.map(imp => `
+                <div class="evidence-row">
+                    <div class="evidence-desc" style="color:var(--accent-color);">
+                        ${imp.targetElement}
+                        <div style="font-size:10px; opacity:0.6; color:var(--fg-color);">${imp.impactDetails}</div>
+                    </div>
+                    <div style="font-size:11px; font-weight:600;">${imp.dependencyDepthLabel}</div>
+                </div>
+            `).join('');
+
+            panel.innerHTML = `
+                <div class="reasoning-card">
+                    <div class="reasoning-card-header">Dependency Impact Viewer</div>
+                    <div style="background:rgba(0,0,0,0.2); padding:8px; border-radius:4px; max-height: 200px; overflow-y:auto;">
+                        ${impactsHtml || '<div style="font-size:11px; opacity:0.6; padding:6px;">No downstream package impacts detected.</div>'}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Render Correlations lists
+        function renderCorrelations(data) {
+            if (activeTab !== 'reasoning' || !data) return;
+            const container = document.getElementById("reasoning-container");
+            
+            if (container.querySelector('.placeholder-text')) {
+                let failHtml = data.failures.map(f => `
+                    <div class="evidence-row" style="cursor:pointer;" onclick="runFailureAttribution('${f.sourceEntityId}')">
+                        <div class="evidence-desc"><strong>${f.sourceEntityId}</strong> → ${f.rationale}</div>
+                        <div class="evidence-score" style="color:var(--accent-color);">${(f.confidence*100).toFixed(0)}%</div>
+                    </div>
+                `).join('');
+
+                container.innerHTML = `
+                    <div class="reasoning-card">
+                        <div class="reasoning-card-header">Active Engineering Correlations</div>
+                        <div class="reasoning-card-subtitle">Captured Failures (Click to Analyze)</div>
+                        <div style="background:rgba(0,0,0,0.2); padding:8px; border-radius:4px; margin-bottom:12px;">
+                            ${failHtml || '<div style="font-size:11px; opacity:0.6; padding:6px;">No active failures found. Try trigger compiling or test runs first.</div>'}
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        function triggerGraphQuery() {
+            vscode.postMessage({ type: 'refreshGraph' });
+        }
+
+        function triggerLineageTrace() {
+            const nodeId = document.getElementById("lineage-node-id").value.trim();
+            if (nodeId) {
+                vscode.postMessage({ type: 'traceLineage', nodeId: nodeId });
+            }
+        }
+
+        function triggerRootCauseAnalysis() {
+            const nodeId = document.getElementById("reasoning-failure-id").value.trim();
+            if (nodeId) {
+                runFailureAttribution(nodeId);
+            }
+        }
+
+        function runFailureAttribution(nodeId) {
+            document.getElementById("reasoning-failure-id").value = nodeId;
+            vscode.postMessage({ type: 'runFailureAttribution', nodeId: nodeId });
+        }
+
+        // Modernization tab actions
+        function triggerModernizationPlan() {
+            const type = parseInt(document.getElementById("mod-type").value);
+            const payload = document.getElementById("mod-payload").value.trim();
+            if (payload) {
+                vscode.postMessage({ type: 'generateModernizationPlan', modType: type, payload: payload });
+            }
+        }
+
+        function approveModernizationPlan(planId) {
+            vscode.postMessage({ type: 'executeModernization', planId: planId, action: 'approve' });
+        }
+
+        function runModernizationStep(planId, stepId) {
+            vscode.postMessage({ type: 'executeModernization', planId: planId, action: 'execute-step', stepId: stepId });
+        }
+
+        function rollbackModernizationPlan(planId) {
+            vscode.postMessage({ type: 'executeModernization', planId: planId, action: 'rollback' });
+        }
+
+        // Productization Rendering Functions
+        function renderProductSettings(settings) {
+            if (!settings) return;
+            document.getElementById("settings-storage-path").value = settings.modelStoragePath || "";
+            document.getElementById("settings-llm-model").value = settings.activeLlmModel || "Phi-3-Mini-Instruct-ONNX";
+            document.getElementById("settings-emb-model").value = settings.activeEmbeddingModel || "All-MiniLM-L6-v2-ONNX";
+            document.getElementById("settings-provider").value = settings.hardwareProviderPreference || "DirectML";
+            document.getElementById("settings-log-level").value = settings.logLevelThreshold || "Information";
+        }
+
+        function saveSettings() {
+            const settings = {
+                modelStoragePath: document.getElementById("settings-storage-path").value.trim(),
+                activeLlmModel: document.getElementById("settings-llm-model").value,
+                activeEmbeddingModel: document.getElementById("settings-emb-model").value,
+                hardwareProviderPreference: document.getElementById("settings-provider").value,
+                logLevelThreshold: document.getElementById("settings-log-level").value
+            };
+            vscode.postMessage({ type: 'saveProductSettings', settings: settings });
+        }
+
+        function renderProductModels(models) {
+            const container = document.getElementById("models-list-container");
+            if (!models || models.length === 0) {
+                container.innerHTML = `<div class="placeholder-text">No models configured.</div>`;
+                return;
+            }
+
+            container.innerHTML = models.map(m => {
+                let badgeColor = "#bd10e0";
+                if (m.status === 2) badgeColor = "#7ed321"; // Ready
+                if (m.status === 0) badgeColor = "#d0021b"; // Missing
+                if (m.status === 1) badgeColor = "#f5a623"; // Downloading
+                if (m.status === 3) badgeColor = "#ff4d4f"; // Failed
+
+                let statusLabel = "Unknown";
+                if (m.status === 0) statusLabel = "Missing";
+                if (m.status === 1) statusLabel = `Downloading ${m.percentage.toFixed(1)}% (${m.downloadSpeedEstimate})`;
+                if (m.status === 2) statusLabel = "Ready";
+                if (m.status === 3) statusLabel = "Failed";
+
+                return `
+                    <div class="evidence-row">
+                        <div class="evidence-desc">
+                            <strong>${m.modelId}</strong>
+                            <div style="font-size:10px; opacity:0.6;">Size limit: ${(m.totalBytes/1024/1024).toFixed(0)} MB | Received: ${(m.bytesReceived/1024/1024).toFixed(0)} MB</div>
+                        </div>
+                        <div style="display:flex; gap:6px; align-items:center;">
+                            <span class="timeline-badge" style="background:${badgeColor}; font-weight:600; padding:2px 6px; font-size:9px;">${statusLabel}</span>
+                            ${m.status === 0 || m.status === 3
+                                ? `<button class="btn" style="padding:3px 6px; font-size:9px;" onclick="downloadModel('${m.modelId}')">Download</button>`
+                                : ''
+                            }
+                            ${m.status === 1
+                                ? `<button class="btn btn-secondary" style="padding:3px 6px; font-size:9px; background:#d0021b; color:#fff; border:0;" onclick="cancelDownload('${m.modelId}')">Cancel</button>`
+                                : ''
+                            }
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function downloadModel(modelId) {
+            vscode.postMessage({ type: 'downloadProductModel', modelId: modelId });
+        }
+
+        function cancelDownload(modelId) {
+            vscode.postMessage({ type: 'cancelProductModelDownload', modelId: modelId });
+        }
+
+        function renderProductDependencies(deps) {
+            const container = document.getElementById("dependencies-container");
+            if (!deps || deps.length === 0) {
+                container.innerHTML = `<div class="placeholder-text">No dependency checks retrieved.</div>`;
+                return;
+            }
+
+            container.innerHTML = deps.map(d => {
+                let badgeColor = "#7ed321"; // Healthy
+                if (d.health === 1) badgeColor = "#d0021b"; // Missing
+                if (d.health === 2) badgeColor = "#f5a623"; // Corrupted
+
+                let healthLabel = "Healthy";
+                if (d.health === 1) healthLabel = "Missing";
+                if (d.health === 2) healthLabel = "Corrupt";
+
+                return `
+                    <div class="evidence-row">
+                        <div class="evidence-desc">
+                            <strong>${d.name}</strong>
+                            <div style="font-size:10px; opacity:0.6;">${d.description}</div>
+                        </div>
+                        <div style="display:flex; gap:6px; align-items:center;">
+                            <span class="timeline-badge" style="background:${badgeColor}; font-weight:600;">${healthLabel}</span>
+                            ${d.health !== 0
+                                ? `<button class="btn" style="padding:3px 6px; font-size:9px;" onclick="repairDependency('${d.name}')">Repair</button>`
+                                : ''
+                            }
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function repairDependency(name) {
+            vscode.postMessage({ type: 'repairProductDependency', dependencyName: name });
+        }
+
+        // Telemetry render
+        function renderProductDiagnostics(data) {
+            if (!data) return;
+            document.getElementById("diag-token-speed").innerText = `${data.tokenThroughput} tokens/s`;
+            document.getElementById("diag-peak-ram").innerText = `${(data.peakWorkingSetMemory/1024/1024).toFixed(1)} MB`;
+            document.getElementById("diag-device-target").innerText = data.activeDeviceDescription || "";
+        }
+
+        function renderProductOnboarding(data) {
+            if (!data) return;
+            const badge = document.getElementById("onboard-status-badge");
+            badge.innerText = data.completed ? "Completed" : "Action Required";
+            badge.style.background = data.completed ? "#7ed321" : "#d0021b";
+
+            const wizard = document.getElementById("onboard-wizard-controls");
+            if (!data.completed) {
+                wizard.style.display = "block";
+                document.getElementById("onboard-hardware-details").innerText = data.hardwareDetails || "";
+            } else {
+                wizard.style.display = "none";
+            }
+        }
+
+        function completeOnboardingFlow() {
+            vscode.postMessage({ type: 'completeProductOnboarding' });
+        }
+
+        function renderProductUpdates(data) {
+            if (!data) return;
+            const badge = document.getElementById("update-manager-badge");
+            badge.innerText = data.isAvailable ? "Update Staged" : "Up To Date";
+            badge.style.background = data.isAvailable ? "#f5a623" : "#7ed321";
+
+            const details = document.getElementById("update-details-box");
+            if (data.isAvailable) {
+                details.style.display = "block";
+                document.getElementById("update-release-notes").innerText = `Version ${data.targetVersion}: ${data.releaseNotes}`;
+            } else {
+                details.style.display = "none";
+            }
+        }
+
+        function applyUpdate() {
+            vscode.postMessage({ type: 'applyProductUpdate' });
+        }
+
+        function renderProductLogs(logs) {
+            const container = document.getElementById("logs-container");
+            if (!logs || logs.length === 0) {
+                container.innerHTML = `<div style="color: #888;">No log rows found.</div>`;
+                return;
+            }
+
+            container.innerHTML = logs.map(l => {
+                let color = "#cccccc";
+                if (l.level === "Warning") color = "#f5a623";
+                if (l.level === "Error") color = "#ff4d4f";
+                
+                const time = l.timestamp.split('T')[1]?.substring(0, 8) || "";
+                return `<div style="line-height: 1.3; text-align: left;"><span style="color:#888;">[${time}]</span> <span style="color:${color}; font-weight:600;">[${l.level}]</span> <span style="color:var(--accent-color); font-weight:500;">[${l.source}]</span> ${l.message}</div>`;
+            }).join('');
+        }
+
+        // Periodic telemetry ticker
+        setInterval(() => {
+            if (activeTab === 'productization') {
+                vscode.postMessage({ type: 'getProductDiagnostics' });
+                vscode.postMessage({ type: 'getProductLogs' });
+                vscode.postMessage({ type: 'getProductModels' });
+            }
+        }, 1500);
+
+        // Auto load initial graph data
+        triggerGraphQuery();
+    </script>
+</body>
+</html>

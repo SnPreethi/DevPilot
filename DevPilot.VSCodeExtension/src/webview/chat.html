@@ -1,0 +1,1398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DevPilot Chat</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+    :root {
+      --bg-gradient: linear-gradient(135deg, #0e1117 0%, #161b22 100%);
+      --card-bg: rgba(22, 27, 34, 0.7);
+      --border-color: rgba(240, 246, 252, 0.1);
+      --accent-color: hsl(210, 100%, 65%);
+      --accent-gradient: linear-gradient(135deg, #58a6ff 0%, #1f6feb 100%);
+      --text-main: #c9d1d9;
+      --text-muted: #8b949e;
+      --bubble-user: rgba(31, 111, 235, 0.2);
+      --bubble-assistant: rgba(22, 27, 34, 0.8);
+      --code-bg: #0d1117;
+      --font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: var(--bg-gradient);
+      color: var(--text-main);
+      font-family: var(--font-family);
+      font-size: 13px;
+      line-height: 1.5;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* Diagnostics Header Panel */
+    .status-panel {
+      background: var(--card-bg);
+      border-bottom: 1px solid var(--border-color);
+      padding: 10px 14px;
+      backdrop-filter: blur(10px);
+      z-index: 10;
+      font-size: 11px;
+    }
+
+    .status-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .status-title {
+      font-weight: 600;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .status-indicator {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: #8b949e;
+      box-shadow: 0 0 8px rgba(139, 148, 158, 0.5);
+      transition: background-color 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .status-indicator.online {
+      background-color: #3fb950;
+      box-shadow: 0 0 10px rgba(63, 185, 80, 0.8);
+      animation: pulse 2s infinite;
+    }
+
+    .status-indicator.fallback {
+      background-color: #d29922;
+      box-shadow: 0 0 10px rgba(210, 153, 34, 0.8);
+    }
+
+    @keyframes pulse {
+      0% { box-shadow: 0 0 4px rgba(63, 185, 80, 0.4); }
+      50% { box-shadow: 0 0 12px rgba(63, 185, 80, 0.9); }
+      100% { box-shadow: 0 0 4px rgba(63, 185, 80, 0.4); }
+    }
+
+    .status-details {
+      margin-top: 8px;
+      display: none;
+      flex-direction: column;
+      gap: 6px;
+      border-top: 1px dashed var(--border-color);
+      padding-top: 8px;
+      color: var(--text-muted);
+    }
+
+    .status-details.show {
+      display: flex;
+    }
+
+    .status-row {
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .status-val {
+      font-family: var(--font-mono);
+      color: var(--text-main);
+    }
+
+    .workflow-panel {
+      background: rgba(13, 17, 23, 0.85);
+      border-bottom: 1px solid var(--border-color);
+      padding: 10px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      font-size: 11px;
+    }
+
+    .workflow-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .workflow-title {
+      font-weight: 700;
+      color: var(--text-main);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .workflow-actions {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .workflow-btn {
+      background: rgba(88, 166, 255, 0.12);
+      border: 1px solid rgba(88, 166, 255, 0.25);
+      color: var(--accent-color);
+      border-radius: 5px;
+      padding: 3px 7px;
+      font-size: 10px;
+      cursor: pointer;
+    }
+
+    .workflow-btn.warn {
+      color: #d29922;
+      border-color: rgba(210, 153, 34, 0.35);
+      background: rgba(210, 153, 34, 0.1);
+    }
+
+    .workflow-btn.danger {
+      color: #ff7b72;
+      border-color: rgba(248, 81, 73, 0.35);
+      background: rgba(248, 81, 73, 0.1);
+    }
+
+    .workflow-summary {
+      color: var(--text-muted);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .workflow-progress {
+      height: 5px;
+      background: #161b22;
+      border-radius: 999px;
+      overflow: hidden;
+      border: 1px solid var(--border-color);
+    }
+
+    .workflow-progress-fill {
+      height: 100%;
+      width: 0%;
+      background: var(--accent-gradient);
+      transition: width 0.2s ease;
+    }
+
+    .workflow-task-list {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      max-height: 145px;
+      overflow-y: auto;
+    }
+
+    .workflow-task {
+      display: grid;
+      grid-template-columns: 72px 1fr auto;
+      align-items: center;
+      gap: 6px;
+      border: 1px solid var(--border-color);
+      background: rgba(22, 27, 34, 0.55);
+      border-radius: 6px;
+      padding: 5px 6px;
+    }
+
+    .workflow-status {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      color: var(--text-muted);
+    }
+
+    .workflow-task-name {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: var(--text-main);
+    }
+
+    .execution-panel {
+      background: rgba(13, 17, 23, 0.72);
+      border-bottom: 1px solid var(--border-color);
+      padding: 10px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      font-size: 11px;
+    }
+
+    .execution-stage-list {
+      display: flex;
+      gap: 5px;
+      overflow-x: auto;
+      padding-bottom: 2px;
+    }
+
+    .execution-stage {
+      min-width: 74px;
+      border: 1px solid var(--border-color);
+      background: rgba(22, 27, 34, 0.7);
+      border-radius: 6px;
+      padding: 5px;
+      font-size: 9px;
+      color: var(--text-muted);
+    }
+
+    .execution-stage.running {
+      border-color: var(--accent-color);
+      color: var(--text-main);
+    }
+
+    .execution-stage.completed {
+      border-color: rgba(63, 185, 80, 0.55);
+      color: #3fb950;
+    }
+
+    .execution-stage.failed {
+      border-color: rgba(248, 81, 73, 0.55);
+      color: #ff7b72;
+    }
+
+    /* Chat Messages Container */
+    .chat-container {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      scroll-behavior: smooth;
+    }
+
+    .message {
+      max-width: 90%;
+      display: flex;
+      flex-direction: column;
+      animation: fadeIn 0.25s ease-out forwards;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .message.user {
+      align-self: flex-end;
+      align-items: flex-end;
+    }
+
+    .message.assistant {
+      align-self: flex-start;
+      align-items: flex-start;
+    }
+
+    .message-bubble {
+      padding: 10px 14px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      border: 1px solid var(--border-color);
+      word-wrap: break-word;
+    }
+
+    .message.user .message-bubble {
+      background: var(--bubble-user);
+      border-color: rgba(88, 166, 255, 0.2);
+      border-bottom-right-radius: 2px;
+      color: #e6edf3;
+    }
+
+    .message.assistant .message-bubble {
+      background: var(--bubble-assistant);
+      border-bottom-left-radius: 2px;
+      color: var(--text-main);
+      width: 100%;
+    }
+
+    .message-meta {
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-top: 4px;
+      padding: 0 4px;
+    }
+
+    /* Markdown styling inside assistant response */
+    .message-bubble p {
+      margin-bottom: 8px;
+    }
+    .message-bubble p:last-child {
+      margin-bottom: 0;
+    }
+
+    .message-bubble pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 10px;
+      margin: 8px 0;
+      overflow-x: auto;
+      position: relative;
+    }
+
+    .message-bubble code {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      background: rgba(110, 118, 129, 0.15);
+      padding: 2px 4px;
+      border-radius: 4px;
+    }
+
+    .message-bubble pre code {
+      background: none;
+      padding: 0;
+      border-radius: 0;
+    }
+
+    .code-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #161b22;
+      margin: -10px -10px 10px -10px;
+      padding: 6px 10px;
+      font-size: 10px;
+      font-family: var(--font-family);
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .copy-btn {
+      background: transparent;
+      border: none;
+      color: var(--accent-color);
+      cursor: pointer;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-size: 10px;
+      transition: background 0.2s;
+    }
+
+    .copy-btn:hover {
+      background: rgba(88, 166, 255, 0.1);
+    }
+
+    /* Context container */
+    .context-box {
+      font-size: 11px;
+      background: rgba(139, 148, 158, 0.05);
+      border-left: 2px solid var(--accent-color);
+      padding: 6px 10px;
+      margin-bottom: 10px;
+      border-radius: 0 4px 4px 0;
+    }
+
+    .context-title {
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+
+    /* Edit Plan Card & Workflow Styling */
+    .edit-plan-card {
+      background: var(--card-bg);
+      border: 1px solid var(--accent-color);
+      border-radius: 12px;
+      padding: 14px;
+      margin: 12px 0;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+      backdrop-filter: blur(8px);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      animation: fadeIn 0.3s ease-out;
+      width: 100%;
+    }
+
+    .edit-plan-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--accent-color);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .edit-reasoning {
+      font-size: 12px;
+      color: var(--text-main);
+      background: rgba(255, 255, 255, 0.03);
+      padding: 8px 10px;
+      border-radius: 6px;
+      border: 1px solid var(--border-color);
+    }
+
+    .edit-files-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .edit-file-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 10px;
+      background: #0d1117;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.2s, border-color 0.2s;
+    }
+
+    .edit-file-item:hover {
+      background: rgba(88, 166, 255, 0.05);
+      border-color: var(--accent-color);
+    }
+
+    .edit-file-item.invalid {
+      border-color: #f85149;
+    }
+
+    .edit-file-item.invalid:hover {
+      background: rgba(248, 81, 73, 0.05);
+    }
+
+    .file-path {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-main);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .badge {
+      font-size: 9px;
+      font-weight: 600;
+      padding: 2px 6px;
+      border-radius: 12px;
+      text-transform: uppercase;
+    }
+
+    .badge.success {
+      background: rgba(56, 139, 60, 0.2);
+      color: #58a6ff;
+      border: 1px solid rgba(56, 139, 60, 0.4);
+    }
+
+    .badge.danger {
+      background: rgba(248, 81, 73, 0.2);
+      color: #ff7b72;
+      border: 1px solid rgba(248, 81, 73, 0.4);
+    }
+
+    .edit-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 8px;
+      align-items: center;
+    }
+
+    .action-btn {
+      flex: 1;
+      padding: 8px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      border-radius: 6px;
+      cursor: pointer;
+      text-align: center;
+      transition: opacity 0.2s, transform 0.1s;
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+    }
+
+    .action-btn.apply {
+      background: linear-gradient(135deg, #2ea44f 0%, #22863a 100%);
+      color: #ffffff;
+      box-shadow: 0 2px 8px rgba(46, 164, 79, 0.3);
+    }
+
+    .action-btn.apply:hover {
+      opacity: 0.95;
+    }
+
+    .action-btn.discard {
+      background: rgba(248, 81, 73, 0.1);
+      border: 1px solid rgba(248, 81, 73, 0.3);
+      color: #ff7b72;
+    }
+
+    .action-btn.discard:hover {
+      background: rgba(248, 81, 73, 0.2);
+    }
+
+    .action-btn.revert {
+      background: #d29922;
+      color: #ffffff;
+      box-shadow: 0 2px 8px rgba(210, 153, 34, 0.3);
+    }
+
+    .action-btn.revert:hover {
+      opacity: 0.95;
+    }
+
+    /* Chat Input Form */
+    .input-form {
+      padding: 14px;
+      background: rgba(22, 27, 34, 0.9);
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      gap: 10px;
+      align-items: flex-end;
+    }
+
+    .input-textarea {
+      flex: 1;
+      background: #0d1117;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 8px 12px;
+      color: var(--text-main);
+      font-family: var(--font-family);
+      font-size: 13px;
+      resize: none;
+      height: 38px;
+      max-height: 120px;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .input-textarea:focus {
+      border-color: var(--accent-color);
+      box-shadow: 0 0 0 2px rgba(88, 166, 255, 0.15);
+    }
+
+    .send-btn {
+      background: var(--accent-gradient);
+      border: none;
+      color: #ffffff;
+      border-radius: 8px;
+      padding: 0 16px;
+      height: 38px;
+      cursor: pointer;
+      font-weight: 500;
+      transition: opacity 0.2s, transform 0.1s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .send-btn:hover {
+      opacity: 0.9;
+    }
+
+    .send-btn:active {
+      transform: scale(0.97);
+    }
+
+    .send-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* Typing bubble indicator */
+    .typing-indicator {
+      display: flex;
+      gap: 4px;
+      padding: 4px 8px;
+      align-items: center;
+    }
+
+    .dot {
+      width: 6px;
+      height: 6px;
+      background: var(--text-muted);
+      border-radius: 50%;
+      animation: bounce 1.4s infinite ease-in-out both;
+    }
+
+    .dot:nth-child(1) { animation-delay: -0.32s; }
+    .dot:nth-child(2) { animation-delay: -0.16s; }
+
+    @keyframes bounce {
+      0%, 80%, 100% { transform: scale(0); }
+      40% { transform: scale(1.0); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Diagnostics Header -->
+  <div class="status-panel">
+    <div class="status-header" id="statusHeader">
+      <div class="status-title">
+        <div class="status-indicator" id="statusIndicator"></div>
+        <span>Runtime: <span id="statusProviderText">Checking...</span></span>
+      </div>
+      <span style="color: var(--text-muted); font-size: 10px;" id="toggleArrow">▼</span>
+    </div>
+    <div class="status-details" id="statusDetails">
+      <div class="status-row">
+        <span>Hardware:</span>
+        <span class="status-val" id="statusHardware">--</span>
+      </div>
+      <div class="status-row">
+        <span>LLM Model:</span>
+        <span class="status-val" id="statusLLM">--</span>
+      </div>
+      <div class="status-row">
+        <span>Embeddings:</span>
+        <span class="status-val" id="statusEmbeddings">--</span>
+      </div>
+      <div class="status-row">
+        <span>Memory:</span>
+        <span class="status-val" id="statusMemory">--</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="workflow-panel">
+    <div class="workflow-header">
+      <div class="workflow-title">Workflows</div>
+      <div class="workflow-actions">
+        <button class="workflow-btn" id="workflowRefreshBtn" type="button">Refresh</button>
+        <button class="workflow-btn" id="workflowStartBtn" type="button">Start</button>
+      </div>
+    </div>
+    <div class="workflow-summary" id="workflowSummary">No active workflow.</div>
+    <div class="workflow-progress"><div class="workflow-progress-fill" id="workflowProgressFill"></div></div>
+    <div class="workflow-actions" id="workflowControlActions"></div>
+    <div class="workflow-task-list" id="workflowTaskList"></div>
+  </div>
+
+  <div class="execution-panel">
+    <div class="workflow-header">
+      <div class="workflow-title">Execution</div>
+      <div class="workflow-actions">
+        <button class="workflow-btn" id="executionRefreshBtn" type="button">Refresh</button>
+        <button class="workflow-btn" id="executionStartBtn" type="button">Start Dry Run</button>
+      </div>
+    </div>
+    <div class="workflow-summary" id="executionSummary">No execution pipeline.</div>
+    <div class="workflow-actions" id="executionControlActions"></div>
+    <div class="execution-stage-list" id="executionStageList"></div>
+  </div>
+
+  <!-- Chat History -->
+  <div class="chat-container" id="chatContainer">
+    <div class="message assistant">
+      <div class="message-bubble">
+        Hello! I'm DevPilot, your local offline AI coding assistant. Ask me a question, or right-click any code selection to explain it.
+      </div>
+    </div>
+  </div>
+
+  <!-- Chat Input -->
+  <form class="input-form" id="inputForm">
+    <textarea 
+      class="input-textarea" 
+      id="inputText" 
+      placeholder="Ask DevPilot..." 
+      rows="1"
+      autocomplete="off"
+    ></textarea>
+    <button class="send-btn" type="submit" id="sendBtn">Send</button>
+  </form>
+
+  <script>
+    const vscode = acquireVsCodeApi();
+    const chatContainer = document.getElementById('chatContainer');
+    const inputForm = document.getElementById('inputForm');
+    const inputText = document.getElementById('inputText');
+    const sendBtn = document.getElementById('sendBtn');
+    const statusHeader = document.getElementById('statusHeader');
+    const statusIndicator = document.getElementById('statusIndicator');
+    const statusProviderText = document.getElementById('statusProviderText');
+    const statusHardware = document.getElementById('statusHardware');
+    const statusLLM = document.getElementById('statusLLM');
+    const statusEmbeddings = document.getElementById('statusEmbeddings');
+    const statusMemory = document.getElementById('statusMemory');
+    const statusDetails = document.getElementById('statusDetails');
+    const toggleArrow = document.getElementById('toggleArrow');
+    const workflowRefreshBtn = document.getElementById('workflowRefreshBtn');
+    const workflowStartBtn = document.getElementById('workflowStartBtn');
+    const workflowSummary = document.getElementById('workflowSummary');
+    const workflowProgressFill = document.getElementById('workflowProgressFill');
+    const workflowControlActions = document.getElementById('workflowControlActions');
+    const workflowTaskList = document.getElementById('workflowTaskList');
+    const executionRefreshBtn = document.getElementById('executionRefreshBtn');
+    const executionStartBtn = document.getElementById('executionStartBtn');
+    const executionSummary = document.getElementById('executionSummary');
+    const executionControlActions = document.getElementById('executionControlActions');
+    const executionStageList = document.getElementById('executionStageList');
+
+    let currentResponseBubble = null;
+    let isGenerating = false;
+    let lastActivePlan = null;
+    let activeWorkflow = null;
+    let activeExecution = null;
+
+    // Toggle Status Details Panel
+    statusHeader.addEventListener('click', () => {
+      const show = statusDetails.classList.toggle('show');
+      toggleArrow.textContent = show ? '▲' : '▼';
+    });
+
+    // Auto-resize input textarea
+    inputText.addEventListener('input', () => {
+      inputText.style.height = 'auto';
+      inputText.style.height = (inputText.scrollHeight) + 'px';
+    });
+
+    inputText.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        inputForm.requestSubmit();
+      }
+    });
+
+    workflowRefreshBtn.addEventListener('click', () => {
+      vscode.postMessage({ type: 'refreshWorkflows' });
+    });
+
+    workflowStartBtn.addEventListener('click', () => {
+      const objective = inputText.value.trim();
+      if (!objective) {
+        appendMessage('assistant', 'Enter a workflow objective in the prompt box, then press Start.');
+        return;
+      }
+
+      vscode.postMessage({ type: 'startWorkflow', objective });
+    });
+
+    executionRefreshBtn.addEventListener('click', () => {
+      vscode.postMessage({ type: 'refreshExecutions' });
+    });
+
+    executionStartBtn.addEventListener('click', () => {
+      if (!activeWorkflow || !activeWorkflow.state) {
+        appendMessage('assistant', 'Start or load a workflow before creating an execution pipeline.');
+        return;
+      }
+
+      const instance = activeWorkflow.state.instance;
+      const objective = inputText.value.trim() || instance.objective;
+      vscode.postMessage({
+        type: 'startExecution',
+        workflowId: instance.workflowId,
+        workflowTaskId: instance.activeTaskId,
+        objective,
+        dryRun: true
+      });
+    });
+
+    // Handle Form Submission
+    inputForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const prompt = inputText.value.trim();
+      if (!prompt || isGenerating) return;
+
+      appendMessage('user', prompt);
+      inputText.value = '';
+      inputText.style.height = '38px';
+
+      isGenerating = true;
+      sendBtn.disabled = true;
+
+      // Show typing indicator
+      showTypingIndicator();
+
+      // Post prompt to Extension backend
+      vscode.postMessage({
+        type: 'sendMessage',
+        prompt: prompt
+      });
+    });
+
+    // Process messages from Extension Host
+    window.addEventListener('message', (event) => {
+      const msg = event.data;
+      switch (msg.type) {
+        case 'statusUpdate':
+          updateStatus(msg.status);
+          break;
+        case 'streamStart':
+          removeTypingIndicator();
+          currentResponseBubble = appendMessage('assistant', '');
+          break;
+        case 'streamChunk':
+          if (currentResponseBubble) {
+            currentResponseBubble.textContent += msg.text;
+            formatMarkdown(currentResponseBubble);
+            scrollToBottom();
+          }
+          break;
+        case 'streamContext':
+          if (msg.context && msg.context.length > 0) {
+            appendContextBox(msg.context);
+          }
+          break;
+        case 'streamDone':
+          isGenerating = false;
+          sendBtn.disabled = false;
+          currentResponseBubble = null;
+          scrollToBottom();
+          break;
+        case 'streamError':
+          removeTypingIndicator();
+          appendMessage('assistant', `Error: ${msg.message || 'Unknown generation error'}`);
+          isGenerating = false;
+          sendBtn.disabled = false;
+          currentResponseBubble = null;
+          scrollToBottom();
+          break;
+        case 'explainTriggered':
+          // Selection explain triggered via editor command
+          appendMessage('user', `Explain the selected code`);
+          isGenerating = true;
+          sendBtn.disabled = true;
+          showTypingIndicator();
+          break;
+        case 'editPlanStart':
+          removeTypingIndicator();
+          appendMessage('user', `Proposed Edit: ${msg.prompt}`);
+          isGenerating = true;
+          sendBtn.disabled = true;
+          showTypingIndicator("Analyzing codebase and proposing edits...");
+          break;
+        case 'editPlanError':
+          removeTypingIndicator();
+          appendMessage('assistant', `Edit Plan Generation Failed: ${msg.message}`);
+          isGenerating = false;
+          sendBtn.disabled = false;
+          break;
+        case 'editPlanPreview':
+          removeTypingIndicator();
+          renderEditPlanCard(msg.plan, msg.preview);
+          isGenerating = false;
+          sendBtn.disabled = false;
+          break;
+        case 'editPlanApplyResult':
+          handleApplyResult(msg.success, msg.message);
+          break;
+        case 'editPlanRevertResult':
+          handleRevertResult(msg.success, msg.message);
+          break;
+        case 'workflowUpdate':
+          renderWorkflowPanel(msg.active, msg.workflows || []);
+          break;
+        case 'workflowStarted':
+          renderWorkflowPanel(msg.active, []);
+          appendMessage('assistant', 'Workflow started. Task readiness and approval checkpoints are now tracked.');
+          break;
+        case 'workflowError':
+          appendMessage('assistant', `Workflow Error: ${msg.message}`);
+          break;
+        case 'executionUpdate':
+          renderExecutionPanel(msg.active, msg.pipelines || []);
+          break;
+        case 'executionError':
+          appendMessage('assistant', `Execution Error: ${msg.message}`);
+          break;
+      }
+    });
+
+    function updateStatus(status) {
+      if (!status) {
+        statusProviderText.textContent = 'Disconnected';
+        statusIndicator.className = 'status-indicator';
+        return;
+      }
+
+      statusProviderText.textContent = status.selectedProvider || 'Unknown';
+      
+      const provider = status.selectedProvider;
+      if (provider === 'Cpu' || provider === 'CPU') {
+        statusIndicator.className = 'status-indicator fallback';
+      } else {
+        statusIndicator.className = 'status-indicator online';
+      }
+
+      statusHardware.textContent = status.hardwareSummary || 'Unknown';
+      
+      if (status.llmModel) {
+        statusLLM.textContent = `${status.llmModel.modelId || 'PHI-3'} (${status.llmModel.isLoaded ? 'Loaded' : 'Idle'})`;
+      }
+      
+      if (status.embeddingModel) {
+        statusEmbeddings.textContent = `MiniLM (${status.embeddingModel.isLoaded ? 'Loaded' : 'Idle'})`;
+      }
+
+      statusMemory.textContent = status.memoryStatus || '--';
+    }
+
+    function appendMessage(sender, text) {
+      const msgDiv = document.createElement('div');
+      msgDiv.className = `message ${sender}`;
+
+      const bubbleDiv = document.createElement('div');
+      bubbleDiv.className = 'message-bubble';
+      bubbleDiv.textContent = text;
+      
+      msgDiv.appendChild(bubbleDiv);
+      chatContainer.appendChild(msgDiv);
+      scrollToBottom();
+
+      return bubbleDiv;
+    }
+
+    function appendContextBox(contexts) {
+      const contextDiv = document.createElement('div');
+      contextDiv.className = 'context-box';
+      
+      const title = document.createElement('div');
+      title.className = 'context-title';
+      title.textContent = 'Grounded Context Sources:';
+      contextDiv.appendChild(title);
+
+      contexts.forEach(ctx => {
+        const item = document.createElement('div');
+        item.style.marginBottom = '2px';
+        item.textContent = `• ${ctx.filePath} (lines ${ctx.startLine}-${ctx.endLine})`;
+        contextDiv.appendChild(item);
+      });
+
+      chatContainer.appendChild(contextDiv);
+      scrollToBottom();
+    }
+
+    function renderWorkflowPanel(active, workflows) {
+      activeWorkflow = active;
+      workflowTaskList.innerHTML = '';
+      workflowControlActions.innerHTML = '';
+
+      if (!active || !active.state) {
+        workflowSummary.textContent = workflows.length > 0
+          ? `${workflows.length} workflow(s). Refresh after selecting one in a future build.`
+          : 'No active workflow.';
+        workflowProgressFill.style.width = '0%';
+        return;
+      }
+
+      const state = active.state;
+      const progress = active.progress;
+      const instance = state.instance;
+      const tasks = state.tasks || [];
+      const percent = Math.round((progress?.completionRatio || 0) * 100);
+      const instanceStatus = workflowInstanceStatus(instance.status);
+
+      workflowSummary.textContent = `${instanceStatus} - ${instance.objective}`;
+      workflowProgressFill.style.width = `${percent}%`;
+
+      const pauseBtn = workflowButton(instanceStatus === 'Paused' ? 'Resume' : 'Pause', 'warn');
+      pauseBtn.addEventListener('click', () => {
+        vscode.postMessage({
+          type: instanceStatus === 'Paused' ? 'resumeWorkflow' : 'pauseWorkflow',
+          workflowId: instance.workflowId
+        });
+      });
+      workflowControlActions.appendChild(pauseBtn);
+
+      const cancelBtn = workflowButton('Cancel', 'danger');
+      cancelBtn.addEventListener('click', () => {
+        vscode.postMessage({ type: 'cancelWorkflow', workflowId: instance.workflowId });
+      });
+      workflowControlActions.appendChild(cancelBtn);
+
+      tasks.forEach(task => {
+        const taskStatus = workflowTaskStatus(task.status);
+        const row = document.createElement('div');
+        row.className = 'workflow-task';
+
+        const status = document.createElement('div');
+        status.className = 'workflow-status';
+        status.textContent = taskStatus;
+
+        const title = document.createElement('div');
+        title.className = 'workflow-task-name';
+        title.textContent = task.title;
+        title.title = task.description || task.title;
+
+        const actions = document.createElement('div');
+        actions.className = 'workflow-actions';
+
+        if (taskStatus === 'Ready') {
+          const start = workflowButton('Start');
+          start.addEventListener('click', () => {
+            vscode.postMessage({
+              type: 'advanceWorkflow',
+              workflowId: instance.workflowId,
+              taskId: task.taskId,
+              targetStatus: 'InProgress',
+              approvalGranted: false
+            });
+          });
+          actions.appendChild(start);
+        }
+
+        if (taskStatus === 'InProgress') {
+          const done = workflowButton('Done');
+          done.addEventListener('click', () => {
+            vscode.postMessage({
+              type: 'advanceWorkflow',
+              workflowId: instance.workflowId,
+              taskId: task.taskId,
+              targetStatus: 'Completed',
+              approvalGranted: false
+            });
+          });
+          actions.appendChild(done);
+        }
+
+        if (taskStatus === 'WaitingApproval') {
+          const approve = workflowButton('Approve');
+          approve.addEventListener('click', () => {
+            vscode.postMessage({
+              type: 'advanceWorkflow',
+              workflowId: instance.workflowId,
+              taskId: task.taskId,
+              targetStatus: 'InProgress',
+              approvalGranted: true
+            });
+          });
+          actions.appendChild(approve);
+        }
+
+        row.appendChild(status);
+        row.appendChild(title);
+        row.appendChild(actions);
+        workflowTaskList.appendChild(row);
+      });
+    }
+
+    function workflowButton(label, kind) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = `workflow-btn ${kind || ''}`;
+      button.textContent = label;
+      return button;
+    }
+
+    function renderExecutionPanel(active, pipelines) {
+      activeExecution = active;
+      executionStageList.innerHTML = '';
+      executionControlActions.innerHTML = '';
+
+      if (!active || !active.pipeline) {
+        executionSummary.textContent = pipelines.length > 0
+          ? `${pipelines.length} pipeline(s).`
+          : 'No execution pipeline.';
+        return;
+      }
+
+      const pipeline = active.pipeline;
+      const stages = active.stages || [];
+      const artifacts = active.artifacts || [];
+      const failures = active.failures || [];
+      const status = executionPipelineStatus(pipeline.status);
+      executionSummary.textContent = `${status} - ${pipeline.objective} (${artifacts.length} artifact(s), ${failures.length} failure(s))`;
+
+      if (!['Completed', 'Failed', 'Cancelled'].includes(status)) {
+        const validate = workflowButton('Validate');
+        validate.addEventListener('click', () => {
+          vscode.postMessage({ type: 'validateExecution', pipelineId: pipeline.pipelineId });
+        });
+        executionControlActions.appendChild(validate);
+
+        if (status === 'WaitingApproval') {
+          const approve = workflowButton('Approve');
+          approve.addEventListener('click', () => {
+            vscode.postMessage({ type: 'approveExecution', pipelineId: pipeline.pipelineId });
+          });
+          executionControlActions.appendChild(approve);
+        }
+
+        const rollback = workflowButton('Rollback', 'warn');
+        rollback.addEventListener('click', () => {
+          vscode.postMessage({ type: 'rollbackExecution', pipelineId: pipeline.pipelineId });
+        });
+        executionControlActions.appendChild(rollback);
+
+        const cancel = workflowButton('Cancel', 'danger');
+        cancel.addEventListener('click', () => {
+          vscode.postMessage({ type: 'cancelExecution', pipelineId: pipeline.pipelineId });
+        });
+        executionControlActions.appendChild(cancel);
+      }
+
+      stages.forEach(stage => {
+        const item = document.createElement('div');
+        const stageStatus = executionStageStatus(stage.status);
+        item.className = `execution-stage ${stageStatus.toLowerCase()}`;
+        item.title = stage.description || stage.title;
+        item.textContent = `${stage.sequence}. ${stage.title}`;
+        executionStageList.appendChild(item);
+      });
+    }
+
+    function executionPipelineStatus(value) {
+      if (typeof value === 'string') return value.charAt(0).toUpperCase() + value.slice(1);
+      return ['Pending', 'Running', 'WaitingApproval', 'Validating', 'Applying', 'RollingBack', 'Failed', 'Completed', 'Cancelled'][value] || String(value);
+    }
+
+    function executionStageStatus(value) {
+      if (typeof value === 'string') return value.charAt(0).toUpperCase() + value.slice(1);
+      return ['Pending', 'Running', 'WaitingApproval', 'Completed', 'Failed', 'Skipped', 'Cancelled'][value] || String(value);
+    }
+
+    function workflowInstanceStatus(value) {
+      if (typeof value === 'string') return value.charAt(0).toUpperCase() + value.slice(1);
+      return ['Created', 'Active', 'Paused', 'Completed', 'Failed', 'Cancelled'][value] || String(value);
+    }
+
+    function workflowTaskStatus(value) {
+      if (typeof value === 'string') return value.charAt(0).toUpperCase() + value.slice(1);
+      return ['Pending', 'Ready', 'Blocked', 'InProgress', 'WaitingApproval', 'Completed', 'Failed', 'Cancelled'][value] || String(value);
+    }
+
+    function showTypingIndicator(customText) {
+      const typingDiv = document.createElement('div');
+      typingDiv.className = 'message assistant';
+      typingDiv.id = 'typingIndicatorBox';
+
+      const bubbleDiv = document.createElement('div');
+      bubbleDiv.className = 'message-bubble';
+
+      const indicator = document.createElement('div');
+      indicator.className = 'typing-indicator';
+      
+      const label = document.createElement('span');
+      label.style.color = 'var(--text-muted)';
+      label.style.marginRight = '8px';
+      label.textContent = customText || 'Thinking...';
+      
+      indicator.appendChild(label);
+      indicator.innerHTML += '<span class="dot"></span><span class="dot"></span><span class="dot"></span>';
+
+      bubbleDiv.appendChild(indicator);
+      typingDiv.appendChild(bubbleDiv);
+      chatContainer.appendChild(typingDiv);
+      scrollToBottom();
+    }
+
+    function removeTypingIndicator() {
+      const ind = document.getElementById('typingIndicatorBox');
+      if (ind) ind.remove();
+    }
+
+    function scrollToBottom() {
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+
+    function renderEditPlanCard(plan, preview) {
+      lastActivePlan = plan;
+
+      const card = document.createElement('div');
+      card.className = 'edit-plan-card';
+      card.id = 'activeEditPlanCard';
+
+      const title = document.createElement('div');
+      title.className = 'edit-plan-title';
+      title.innerHTML = '⚡ Proposed Edit Plan';
+      card.appendChild(title);
+
+      const reasoning = document.createElement('div');
+      reasoning.className = 'edit-reasoning';
+      reasoning.textContent = plan.reasoningSummary || preview.reasoningSummary || 'No reasoning summary provided.';
+      card.appendChild(reasoning);
+
+      const filesList = document.createElement('div');
+      filesList.className = 'edit-files-list';
+
+      const previews = preview.filePreviews || [];
+      previews.forEach(fp => {
+        const item = document.createElement('div');
+        item.className = `edit-file-item ${fp.isValid ? '' : 'invalid'}`;
+        item.title = fp.isValid ? 'Click to open side-by-side diff' : `Error: ${fp.errorMessage}`;
+        
+        const pathSpan = document.createElement('span');
+        pathSpan.className = 'file-path';
+        pathSpan.textContent = fp.filePath;
+        
+        const badge = document.createElement('span');
+        badge.className = `badge ${fp.isValid ? 'success' : 'danger'}`;
+        badge.textContent = fp.isValid ? 'Diff' : 'Error';
+
+        item.appendChild(pathSpan);
+        item.appendChild(badge);
+
+        // Click to view diff
+        item.addEventListener('click', () => {
+          if (fp.isValid) {
+            vscode.postMessage({
+              type: 'openDiff',
+              filePath: fp.filePath,
+              patchedContent: fp.patchedContent
+            });
+          } else {
+            alert(`File Edit Error:\n${fp.errorMessage}`);
+          }
+        });
+
+        filesList.appendChild(item);
+      });
+
+      card.appendChild(filesList);
+
+      const actions = document.createElement('div');
+      actions.className = 'edit-actions';
+      actions.id = 'editPlanActions';
+
+      const applyBtn = document.createElement('button');
+      applyBtn.className = 'action-btn apply';
+      applyBtn.id = 'applyEditsBtn';
+      applyBtn.innerHTML = '✓ Apply Edits';
+      applyBtn.addEventListener('click', () => {
+        applyBtn.disabled = true;
+        discardBtn.disabled = true;
+        applyBtn.textContent = 'Applying...';
+        vscode.postMessage({
+          type: 'applyEditPlan',
+          plan: plan
+        });
+      });
+
+      const discardBtn = document.createElement('button');
+      discardBtn.className = 'action-btn discard';
+      discardBtn.id = 'discardEditsBtn';
+      discardBtn.innerHTML = '✗ Discard';
+      discardBtn.addEventListener('click', () => {
+        card.remove();
+      });
+
+      actions.appendChild(applyBtn);
+      actions.appendChild(discardBtn);
+      card.appendChild(actions);
+
+      chatContainer.appendChild(card);
+      scrollToBottom();
+    }
+
+    function handleApplyResult(success, errorMessage) {
+      const actionsDiv = document.getElementById('editPlanActions');
+      if (!actionsDiv) return;
+
+      actionsDiv.innerHTML = '';
+
+      if (success) {
+        const statusSpan = document.createElement('div');
+        statusSpan.style.color = '#3fb950';
+        statusSpan.style.fontWeight = '600';
+        statusSpan.style.fontSize = '12px';
+        statusSpan.style.display = 'flex';
+        statusSpan.style.alignItems = 'center';
+        statusSpan.style.gap = '6px';
+        statusSpan.innerHTML = '✓ Changes Applied!';
+        
+        const revertBtn = document.createElement('button');
+        revertBtn.className = 'action-btn revert';
+        revertBtn.style.maxWidth = '120px';
+        revertBtn.innerHTML = '↺ Revert';
+        revertBtn.addEventListener('click', () => {
+          revertBtn.disabled = true;
+          revertBtn.textContent = 'Reverting...';
+          vscode.postMessage({
+            type: 'revertEditPlan'
+          });
+        });
+
+        actionsDiv.appendChild(statusSpan);
+        actionsDiv.appendChild(revertBtn);
+      } else {
+        const errorSpan = document.createElement('div');
+        errorSpan.style.color = '#f85149';
+        errorSpan.style.fontSize = '11px';
+        errorSpan.textContent = `Apply Failed: ${errorMessage}`;
+        actionsDiv.appendChild(errorSpan);
+      }
+    }
+
+    function handleRevertResult(success, errorMessage) {
+      const actionsDiv = document.getElementById('editPlanActions');
+      const card = document.getElementById('activeEditPlanCard');
+      if (!actionsDiv) return;
+
+      actionsDiv.innerHTML = '';
+
+      if (success) {
+        actionsDiv.innerHTML = '<span style="color: #8b949e; font-size: 11px;">↺ Reverted changes successfully.</span>';
+        setTimeout(() => {
+          if (card) card.remove();
+        }, 3000);
+      } else {
+        const errorSpan = document.createElement('div');
+        errorSpan.style.color = '#f85149';
+        errorSpan.style.fontSize = '11px';
+        errorSpan.textContent = `Revert Failed: ${errorMessage}`;
+        actionsDiv.appendChild(errorSpan);
+      }
+    }
+
+    // Basic offline parser for markdown & code blocks
+    function formatMarkdown(bubble) {
+      const rawText = bubble.textContent;
+      const segments = rawText.split('```');
+      bubble.innerHTML = '';
+
+      for (let i = 0; i < segments.length; i++) {
+        if (i % 2 === 1) {
+          const codeBlock = segments[i];
+          const lines = codeBlock.split('\n');
+          const lang = lines[0].trim();
+          const code = lines.slice(1).join('\n').trim();
+
+          const pre = document.createElement('pre');
+          const header = document.createElement('div');
+          header.className = 'code-header';
+          header.innerHTML = `<span>${lang || 'code'}</span><button class="copy-btn">Copy</button>`;
+          pre.appendChild(header);
+
+          const codeElem = document.createElement('code');
+          codeElem.className = lang ? `language-${lang}` : '';
+          codeElem.textContent = code;
+          pre.appendChild(codeElem);
+
+          header.querySelector('.copy-btn').addEventListener('click', (e) => {
+            const btn = e.target;
+            navigator.clipboard.writeText(code).then(() => {
+              btn.textContent = 'Copied!';
+              setTimeout(() => { btn.textContent = 'Copy'; }, 2000);
+            });
+          });
+
+          bubble.appendChild(pre);
+        } else {
+          const textBlock = segments[i];
+          const p = document.createElement('p');
+          p.textContent = textBlock;
+          p.innerHTML = p.innerHTML.replace(/`([^`]+)`/g, '<code>$1</code>');
+          bubble.appendChild(p);
+        }
+      }
+    }
+  </script>
+</body>
+</html>

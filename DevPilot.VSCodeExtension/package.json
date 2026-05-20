@@ -1,0 +1,157 @@
+{
+  "name": "devpilot-vscode",
+  "displayName": "DevPilot",
+  "description": "Windows-native local-first AI coding assistant for offline code generation, search, and explanations.",
+  "version": "0.1.0",
+  "publisher": "devpilot",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "AI",
+    "Programming Languages",
+    "Machine Learning"
+  ],
+  "activationEvents": [],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "devpilot-sidebar",
+          "title": "DevPilot",
+          "icon": "media/icon.png"
+        }
+      ]
+    },
+    "views": {
+      "devpilot-sidebar": [
+        {
+          "type": "webview",
+          "id": "devpilot.chatView",
+          "name": "DevPilot Chat"
+        },
+        {
+          "type": "webview",
+          "id": "devpilot.graphView",
+          "name": "DevPilot Knowledge Graph"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "devpilot.explainSelection",
+        "title": "Explain with DevPilot"
+      },
+      {
+        "command": "devpilot.refactorSelection",
+        "title": "Refactor with DevPilot"
+      },
+      {
+        "command": "devpilot.optimizeSelection",
+        "title": "Optimize with DevPilot"
+      },
+      {
+        "command": "devpilot.generateTests",
+        "title": "Generate Tests with DevPilot"
+      },
+      {
+        "command": "devpilot.addLogging",
+        "title": "Add Logging with DevPilot"
+      },
+      {
+        "command": "devpilot.convertToAsync",
+        "title": "Convert to Async with DevPilot"
+      },
+      {
+        "command": "devpilot.analyzeTerminalSelection",
+        "title": "Analyze Failure with DevPilot"
+      },
+      {
+        "command": "devpilot.clearChat",
+        "title": "Clear Chat"
+      },
+      {
+        "command": "devpilot.showRelationships",
+        "title": "Show Relationships (Knowledge Graph)"
+      },
+      {
+        "command": "devpilot.showDependencyGraph",
+        "title": "Show Dependency Graph"
+      },
+      {
+        "command": "devpilot.showLineage",
+        "title": "Show Lineage Explorer"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "devpilot.explainSelection",
+          "when": "editorHasSelection",
+          "group": "devpilot@1"
+        },
+        {
+          "command": "devpilot.refactorSelection",
+          "when": "editorHasSelection",
+          "group": "devpilot@2"
+        },
+        {
+          "command": "devpilot.optimizeSelection",
+          "when": "editorHasSelection",
+          "group": "devpilot@3"
+        },
+        {
+          "command": "devpilot.generateTests",
+          "when": "editorHasSelection",
+          "group": "devpilot@4"
+        },
+        {
+          "command": "devpilot.addLogging",
+          "when": "editorHasSelection",
+          "group": "devpilot@5"
+        },
+        {
+          "command": "devpilot.convertToAsync",
+          "when": "editorHasSelection",
+          "group": "devpilot@6"
+        },
+        {
+          "command": "devpilot.showRelationships",
+          "when": "editorHasSelection",
+          "group": "devpilot@7"
+        },
+        {
+          "command": "devpilot.showDependencyGraph",
+          "when": "editorHasSelection",
+          "group": "devpilot@8"
+        },
+        {
+          "command": "devpilot.showLineage",
+          "when": "editorHasSelection",
+          "group": "devpilot@9"
+        }
+      ],
+      "terminal/context": [
+        {
+          "command": "devpilot.analyzeTerminalSelection",
+          "when": "terminalHasBeenCreated",
+          "group": "devpilot"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run package",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "esbuild ./src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node",
+    "watch-package": "esbuild ./src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node --watch"
+  },
+  "devDependencies": {
+    "@types/node": "^16.11.7",
+    "@types/vscode": "^1.80.0",
+    "esbuild": "^0.19.0",
+    "typescript": "^5.1.3"
+  }
+}
