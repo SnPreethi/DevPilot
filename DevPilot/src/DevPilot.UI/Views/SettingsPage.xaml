@@ -1,0 +1,37 @@
+<Page
+    x:Class="DevPilot.UI.Views.SettingsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Loaded="OnLoaded">
+    <Grid Padding="{StaticResource PagePadding}" RowDefinitions="Auto,*" RowSpacing="16">
+        <StackPanel>
+            <TextBlock Text="Settings" Style="{ThemeResource TitleTextBlockStyle}" />
+            <TextBlock Text="Local runtime configuration and offline status." Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+        </StackPanel>
+
+        <ScrollViewer Grid.Row="1">
+            <StackPanel Spacing="14">
+                <InfoBar
+                    IsOpen="True"
+                    Severity="Informational"
+                    Title="Offline-first"
+                    Message="DevPilot uses local SQLite storage and local model paths. No cloud endpoints are configured." />
+                <CheckBox Content="Offline only" IsChecked="{Binding Settings.OfflineOnly, Mode=OneWay}" IsEnabled="False" />
+                <TextBlock Text="Embedding model path" FontWeight="SemiBold" />
+                <TextBox Text="{Binding Settings.EmbeddingModelPath, Mode=OneWay}" IsReadOnly="True" />
+                <TextBlock Text="LLM model path" FontWeight="SemiBold" />
+                <TextBox Text="{Binding Settings.LlmModelPath, Mode=OneWay}" IsReadOnly="True" />
+                <TextBlock Text="Retrieval default top K" FontWeight="SemiBold" />
+                <NumberBox Value="{Binding Settings.DefaultTopK, Mode=OneWay}" IsEnabled="False" />
+                <TextBlock Text="Prompt limits" FontWeight="SemiBold" />
+                <TextBlock Text="{Binding Settings.MaxPromptCharacters}" />
+                <TextBlock Text="{Binding Settings.MaxChunkCharacters}" />
+                <TextBlock Text="Runtime status" FontWeight="SemiBold" />
+                <TextBlock Text="{Binding Settings.RuntimeStatus}" />
+                <TextBlock Text="Hardware" FontWeight="SemiBold" />
+                <TextBlock Text="{Binding Settings.HardwareSummary}" />
+                <TextBlock Text="{Binding ErrorMessage}" Foreground="Red" />
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</Page>

@@ -1,0 +1,43 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+    <RootNamespace>DevPilot.UI</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <Platforms>x86;x64;ARM64</Platforms>
+    <RuntimeIdentifiers>win-x86;win-x64;win-arm64</RuntimeIdentifiers>
+    <UseRidGraph>true</UseRidGraph>
+    <UseWinUI>true</UseWinUI>
+    <WindowsPackageType>None</WindowsPackageType>
+    <EnableMsixTooling>false</EnableMsixTooling>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.2" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="8.0.2" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="8.0.1" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="8.0.1" />
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.5.240802000" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\DevPilot.AI\DevPilot.AI.csproj" />
+    <ProjectReference Include="..\DevPilot.Core\DevPilot.Core.csproj" />
+    <ProjectReference Include="..\DevPilot.Indexer\DevPilot.Indexer.csproj" />
+    <ProjectReference Include="..\DevPilot.LocalService\DevPilot.LocalService.csproj" />
+    <ProjectReference Include="..\DevPilot.RAG\DevPilot.RAG.csproj" />
+    <ProjectReference Include="..\DevPilot.Storage\DevPilot.Storage.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Update="appsettings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="appsettings.Development.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+</Project>

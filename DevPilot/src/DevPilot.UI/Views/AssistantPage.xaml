@@ -1,0 +1,51 @@
+<Page
+    x:Class="DevPilot.UI.Views.AssistantPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid Padding="{StaticResource PagePadding}" RowDefinitions="Auto,Auto,*,Auto" RowSpacing="16">
+        <StackPanel>
+            <TextBlock Text="Assistant" Style="{ThemeResource TitleTextBlockStyle}" />
+            <TextBlock Text="Ask grounded questions against retrieved local context." Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+        </StackPanel>
+
+        <Grid Grid.Row="1" ColumnDefinitions="*,96,Auto,Auto" ColumnSpacing="8">
+            <TextBox
+                PlaceholderText="Question"
+                Text="{Binding Question, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+            <NumberBox Grid.Column="1" Minimum="1" Maximum="10" Value="{Binding MaxContextChunks, Mode=TwoWay}" />
+            <Button Grid.Column="2" Content="Ask" Command="{Binding AskCommand}" />
+            <Button Grid.Column="3" Content="Cancel" Command="{Binding CancelCommand}" />
+        </Grid>
+
+        <Grid Grid.Row="2" ColumnDefinitions="2*,*" ColumnSpacing="16">
+            <ScrollViewer>
+                <StackPanel Spacing="10">
+                    <TextBlock Text="Answer" Style="{ThemeResource SubtitleTextBlockStyle}" />
+                    <TextBlock Text="{Binding Answer}" TextWrapping="WrapWholeWords" />
+                </StackPanel>
+            </ScrollViewer>
+            <Grid Grid.Column="1" RowDefinitions="Auto,*,Auto,*" RowSpacing="8">
+                <TextBlock Text="Referenced Files" Style="{ThemeResource SubtitleTextBlockStyle}" />
+                <ListView Grid.Row="1" ItemsSource="{Binding ReferencedFiles}" />
+                <TextBlock Grid.Row="2" Text="Retrieved Context" Style="{ThemeResource SubtitleTextBlockStyle}" />
+                <ListView Grid.Row="3" ItemsSource="{Binding RetrievedContext}">
+                    <ListView.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Padding="6">
+                                <TextBlock Text="{Binding FilePath}" TextTrimming="CharacterEllipsis" />
+                                <TextBlock Text="{Binding Preview}" FontFamily="Consolas" FontSize="12" TextWrapping="Wrap" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
+            </Grid>
+        </Grid>
+
+        <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="12">
+            <ProgressRing Width="20" Height="20" IsActive="{Binding IsBusy}" />
+            <TextBlock Text="{Binding StatusMessage}" />
+            <TextBlock Text="{Binding InferenceSummary}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            <TextBlock Text="{Binding ErrorMessage}" Foreground="Red" />
+        </StackPanel>
+    </Grid>
+</Page>

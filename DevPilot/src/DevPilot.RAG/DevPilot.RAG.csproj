@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.2" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.3" />
+    <PackageReference Include="Microsoft.Extensions.Options" Version="8.0.2" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\DevPilot.Contracts\DevPilot.Contracts.csproj" />
+    <ProjectReference Include="..\DevPilot.Core\DevPilot.Core.csproj" />
+  </ItemGroup>
+</Project>
