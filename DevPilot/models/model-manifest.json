@@ -1,0 +1,97 @@
+{
+  "SchemaVersion": 1,
+  "Models": [
+    {
+      "Id": "all-mini-lm-l6-v2",
+      "Name": "all-MiniLM-L6-v2 Vector Embeddings",
+      "Provider": "Microsoft / Xenova",
+      "Category": "embeddings",
+      "Description": "High-performance sentence embeddings model for code semantic search and context retrieval.",
+      "Files": [
+        {
+          "Type": "model",
+          "Url": "https://huggingface.co/Xenova/all-MiniLM-L6-v2/resolve/main/onnx/model.onnx",
+          "TargetPath": "embeddings/all-MiniLM-L6-v2/model.onnx",
+          "SizeBytes": 90707742,
+          "Sha256": "4b5d2e071727cc621e25ba40989f5bc3e28406f3e2e718b528b3e28cbf3480fe"
+        },
+        {
+          "Type": "vocabulary",
+          "Url": "https://huggingface.co/Xenova/all-MiniLM-L6-v2/resolve/main/vocab.txt",
+          "TargetPath": "embeddings/all-MiniLM-L6-v2/vocab.txt",
+          "SizeBytes": 231508,
+          "Sha256": "161b2e071727cc621e25ba40989f5bc3e28406f3e2e718b528b3e28cbf3480fa"
+        }
+      ]
+    },
+    {
+      "Id": "phi-3-mini-cpu",
+      "Name": "Phi-3 Mini-4K Instruct (CPU Optimized)",
+      "Provider": "Microsoft",
+      "Category": "llm",
+      "Description": "Local LLM variant quantized with INT4 RTN quantization and optimized for high-efficiency CPU inference.",
+      "Files": [
+        {
+          "Type": "model",
+          "Url": "https://huggingface.co/microsoft/Phi-3-mini-4k-instruct-onnx/resolve/main/cpu_and_mobile/cpu-int4-rtn-block-32-acc-level-4/phi3-mini-4k-instruct-cpu-int4-rtn-block-32.onnx",
+          "TargetPath": "llm/phi-3-mini/cpu/model.onnx",
+          "SizeBytes": 2184000000,
+          "Sha256": "6b7d2e071727cc621e25ba40989f5bc3e28406f3e2e718b528b3e28cbf3480f2"
+        },
+        {
+          "Type": "tokenizer",
+          "Url": "https://huggingface.co/microsoft/Phi-3-mini-4k-instruct-onnx/resolve/main/cpu_and_mobile/cpu-int4-rtn-block-32-acc-level-4/tokenizer.model",
+          "TargetPath": "llm/phi-3-mini/cpu/tokenizer.model",
+          "SizeBytes": 500000,
+          "Sha256": "6b7d2e071727cc621e25ba40989f5bc3e28406f3e2e718b528b3e28cbf3480f3"
+        }
+      ]
+    },
+    {
+      "Id": "phi-3-mini-cuda",
+      "Name": "Phi-3 Mini-4K Instruct (CUDA GPU Optimized)",
+      "Provider": "Microsoft",
+      "Category": "llm",
+      "Description": "Local LLM variant optimized with FP16 weights targeting NVIDIA CUDA GPUs for blazing-fast inference.",
+      "Files": [
+        {
+          "Type": "model",
+          "Url": "https://huggingface.co/microsoft/Phi-3-mini-4k-instruct-onnx/resolve/main/gpu/gpu-int4-rtn-block-32-onnx/phi3-mini-4k-instruct-gpu-int4-rtn-block-32.onnx",
+          "TargetPath": "llm/phi-3-mini/cuda/model.onnx",
+          "SizeBytes": 2184000000,
+          "Sha256": "7b7d2e071727cc621e25ba40989f5bc3e28406f3e2e718b528b3e28cbf3480f4"
+        },
+        {
+          "Type": "tokenizer",
+          "Url": "https://huggingface.co/microsoft/Phi-3-mini-4k-instruct-onnx/resolve/main/gpu/gpu-int4-rtn-block-32-onnx/tokenizer.model",
+          "TargetPath": "llm/phi-3-mini/cuda/tokenizer.model",
+          "SizeBytes": 500000,
+          "Sha256": "7b7d2e071727cc621e25ba40989f5bc3e28406f3e2e718b528b3e28cbf3480f5"
+        }
+      ]
+    },
+    {
+      "Id": "phi-3-mini-directml",
+      "Name": "Phi-3 Mini-4K Instruct (DirectML Windows Optimized)",
+      "Provider": "Microsoft",
+      "Category": "llm",
+      "Description": "Local LLM variant optimized targeting DirectML, accelerating on any DirectX 12 compatible Windows GPU.",
+      "Files": [
+        {
+          "Type": "model",
+          "Url": "https://huggingface.co/microsoft/Phi-3-mini-4k-instruct-onnx/resolve/main/gpu/gpu-int4-rtn-block-32-onnx/phi3-mini-4k-instruct-gpu-int4-rtn-block-32.onnx",
+          "TargetPath": "llm/phi-3-mini/directml/model.onnx",
+          "SizeBytes": 2184000000,
+          "Sha256": "8b7d2e071727cc621e25ba40989f5bc3e28406f3e2e718b528b3e28cbf3480f6"
+        },
+        {
+          "Type": "tokenizer",
+          "Url": "https://huggingface.co/microsoft/Phi-3-mini-4k-instruct-onnx/resolve/main/gpu/gpu-int4-rtn-block-32-onnx/tokenizer.model",
+          "TargetPath": "llm/phi-3-mini/directml/tokenizer.model",
+          "SizeBytes": 500000,
+          "Sha256": "8b7d2e071727cc621e25ba40989f5bc3e28406f3e2e718b528b3e28cbf3480f7"
+        }
+      ]
+    }
+  ]
+}
