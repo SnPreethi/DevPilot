@@ -1,0 +1,74 @@
+# 1. .NET / MSBUILD / VISUAL STUDIO ARTIFACTS
+# Ignoring all compilation and intermediate build artifacts
+**/bin/
+**/obj/
+**/.vs/
+**/*.user
+**/*.suo
+**/*.cache
+**/*.pdb
+**/TestResults/
+
+# 2. WINDOWS APP SDK / WINUI PACKAGING ARTIFACTS
+# Excluding auto-generated UI assets, packaging outputs, and resource indexes
+**/Generated Files/
+**/AppPackages/
+**/BundleArtifacts/
+**/*.pri
+**/*.priconfig
+
+# 3. NODE.JS & VS CODE EXTENSION ARTIFACTS
+# Excluding Node library dependencies, builds, and sandbox test environments
+**/node_modules/
+**/out/
+**/dist/
+**/.vscode-test/
+
+# 4. LOCAL AI / ONNX MODEL WEIGHTS (Excludes huge 11GB+ binaries)
+# Ignoring all ONNX neural network weights, configuration databases, and tokenizers while maintaining the directories in git through placeholder .gitkeep rules.
+**/models/**
+!**/models/
+!**/models/.gitkeep
+!**/models/**/
+
+# 5. DATABASES / LOCAL STATE (SQLite Stores)
+# Ignoring active SQLite databases and database journals (WAL, SHM) while preserving the data directory structure using .gitkeep.
+**/data/**
+!**/data/
+!**/data/.gitkeep
+
+# Excluding generic database formats
+**/*.db
+**/*.sqlite
+**/*.sqlite3
+**/*.db-shm
+**/*.db-wal
+
+# 6. LOCAL RUNTIME CACHES & LOGS (Excludes temporary caches)
+# Ignoring temporary application memory, local caches, and telemetry logs while preserving the cache directory structure using .gitkeep.
+**/cache/**
+!**/cache/
+!**/cache/.gitkeep
+
+# Excluding typical runtime files
+**/runtime/
+**/logs/
+**/artifacts/
+**/*.log
+
+# 7. WORKFLOW / MEMORY STATE / persistent app settings
+# Ignoring persistent workflow state, local onboarding logs, settings overrides, and execution history indexes.
+**/modernization-plans.json
+**/devpilot-onboarding.json
+**/devpilot-settings.json
+**/settings.json
+**/.repo-map-cache.db
+
+# 8. OPERATING SYSTEM & GENERIC ARTIFACTS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 9. RELEASE BUILD OUTPUTS
+release/
+*.vsix
