@@ -26,11 +26,11 @@
 
 # 4. LOCAL AI / ONNX MODEL WEIGHTS (Excludes huge 11GB+ binaries)
 # Ignoring all ONNX neural network weights, configuration databases, and tokenizers while maintaining the directories in git through placeholder .gitkeep rules.
-**/models/*
-!**/models/.gitkeep
-!**/models/model-manifest.json
-**/models/embeddings/
-**/models/llm/
+/DevPilot/models/*
+!/DevPilot/models/.gitkeep
+!/DevPilot/models/model-manifest.json
+/DevPilot/models/embeddings/
+/DevPilot/models/llm/
 
 # 5. DATABASES / LOCAL STATE (SQLite Stores)
 # Ignoring active SQLite databases and database journals (WAL, SHM) while preserving the data directory structure using .gitkeep.
