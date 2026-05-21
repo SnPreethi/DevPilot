@@ -6,16 +6,21 @@
 #  Reads model-manifest.json (SchemaVersion 2) and provisions all AI models.
 #
 #  Two download strategies:
-#    "direct"          - Invoke-WebRequest for small CDN-hosted files (MiniLM)
-#    "huggingface-cli" - huggingface-cli for large ONNX blobs (Phi-3, Xet-backed)
+#    "direct"          — Invoke-WebRequest for small CDN-hosted files (MiniLM)
+#    "huggingface-cli" — 'hf' CLI for large ONNX blobs (Phi-3, Xet-backed)
 #
-#  Usage:
+#  NOTE: The Hugging Face CLI was renamed from 'huggingface-cli' to 'hf'.
+#        This script uses 'hf' exclusively. If 'hf' is not found, run:
+#            pip install huggingface_hub[cli]
+#        or re-run bootstrap.ps1 which installs it automatically.
+#
+#  Usage (run from repo root):
 #    .\scripts\download-models.ps1                     # all variants
-#    .\scripts\download-models.ps1 -Variant cpu        # CPU only
-#    .\scripts\download-models.ps1 -Variant cuda       # CUDA only
-#    .\scripts\download-models.ps1 -Variant directml   # DirectML only
+#    .\scripts\download-models.ps1 -Variant cpu        # CPU only  (~2.3 GB)
+#    .\scripts\download-models.ps1 -Variant cuda       # CUDA FP16 (~7.6 GB)
+#    .\scripts\download-models.ps1 -Variant directml   # DirectML  (~2.3 GB)
 #    .\scripts\download-models.ps1 -Variant cpu,directml
-#    .\scripts\download-models.ps1 -Force              # re-download even if present
+#    .\scripts\download-models.ps1 -Variant cpu -Force  # re-download even if present
 # ==============================================================================
 
 param(
@@ -66,24 +71,26 @@ function Format-Bytes([long]$bytes) {
 }
 
 # ------------------------------------------------------------------------------
-# PRE-FLIGHT: huggingface-cli
+# PRE-FLIGHT: verify 'hf' CLI is available
 # ------------------------------------------------------------------------------
 
-function Assert-HuggingFaceCLI {
-    if (Get-Command "huggingface-cli" -ErrorAction SilentlyContinue) {
-        $ver = (huggingface-cli --version 2>&1) | Select-Object -First 1
-        Write-OK "huggingface-cli is available  ($ver)"
+function Assert-HfCLI {
+    $hfCmd = Get-Command "hf" -ErrorAction SilentlyContinue
+    if ($hfCmd) {
+        $ver = ""
+        try { $ver = (hf --version 2>&1) | Select-Object -First 1 } catch {}
+        Write-OK "hf CLI is available  ($ver)"
         return
     }
 
-    Write-Warn "huggingface-cli not found - attempting pip install..."
+    Write-Warn "'hf' CLI not found — attempting pip install..."
 
-    $pip = Get-Command "pip" -ErrorAction SilentlyContinue
+    $pip = Get-Command "pip"  -ErrorAction SilentlyContinue
     if (-not $pip) { $pip = Get-Command "pip3" -ErrorAction SilentlyContinue }
 
     if (-not $pip) {
-        Write-Fail "pip not found. Cannot install huggingface-cli."
-        Write-Fail "Install Python 3.9+ from https://python.org, then run:"
+        Write-Fail "pip not found. Cannot install hf CLI."
+        Write-Fail "Install Python 3.9+ from https://python.org then run:"
         Write-Fail "    pip install huggingface_hub[cli]"
         exit 1
     }
@@ -92,26 +99,27 @@ function Assert-HuggingFaceCLI {
         & $pip.Source install --quiet "huggingface_hub[cli]"
     } catch {
         Write-Fail "pip install failed: $_"
-        Write-Fail "Run manually:  pip install huggingface_hub[cli]"
+        Write-Fail "Run manually: pip install huggingface_hub[cli]"
         exit 1
     }
 
     # Refresh PATH in this session
-    $env:PATH = [System.Environment]::GetEnvironmentVariable("PATH","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("PATH","User")
+    $env:PATH = [System.Environment]::GetEnvironmentVariable("PATH", "Machine") + ";" +
+                [System.Environment]::GetEnvironmentVariable("PATH", "User")
 
-    if (-not (Get-Command "huggingface-cli" -ErrorAction SilentlyContinue)) {
-        Write-Warn "huggingface-cli installed but not yet on PATH."
-        Write-Warn "Please close this terminal, reopen it, then re-run download-models.ps1"
+    if (-not (Get-Command "hf" -ErrorAction SilentlyContinue)) {
+        Write-Warn "hf CLI installed but not yet on PATH in this session."
+        Write-Warn "Close this terminal, reopen it, then re-run download-models.ps1."
         exit 1
     }
 
-    Write-OK "huggingface-cli installed and ready."
+    Write-OK "hf CLI installed and ready."
 }
 
 # ------------------------------------------------------------------------------
 # POST-DOWNLOAD VALIDATION
-# Checks that every file listed in ExpectedFiles is present and non-empty.
-# This is deliberately lightweight - validate-models.ps1 does the deep SHA check.
+# Lightweight presence + non-empty check on ExpectedFiles.
+# Deep SHA-256 verification is handled by validate-models.ps1.
 # ------------------------------------------------------------------------------
 
 function Test-ExpectedFiles([string]$targetPath, [string[]]$expectedFiles) {
@@ -124,19 +132,17 @@ function Test-ExpectedFiles([string]$targetPath, [string[]]$expectedFiles) {
             Write-Fail "Missing expected file: $fileName"
             $allGood = $false
         } elseif ((Get-Item $fullPath).Length -eq 0) {
-            Write-Fail "Empty file (zero bytes): $fileName"
+            Write-Fail "Zero-byte file (incomplete download?): $fileName"
             $allGood = $false
         } else {
-            $size = Format-Bytes (Get-Item $fullPath).Length
-            Write-OK "Verified: $fileName  ($size)"
+            Write-OK "Verified: $fileName  ($(Format-Bytes (Get-Item $fullPath).Length))"
         }
     }
     return $allGood
 }
 
 # ------------------------------------------------------------------------------
-# STRATEGY A: Direct HTTP download
-# Used for small CDN-backed files (all-MiniLM vocab, model.onnx)
+# STRATEGY A: Direct HTTP — small CDN-backed files (MiniLM vocab, model.onnx)
 # ------------------------------------------------------------------------------
 
 function Invoke-DirectDownload($file, [string]$modelsRoot) {
@@ -149,11 +155,10 @@ function Invoke-DirectDownload($file, [string]$modelsRoot) {
             Write-Skip "Already present: $($file.TargetPath)  ($(Format-Bytes $actual))"
             return $true
         }
-        Write-Info "Size mismatch on $($file.TargetPath) - re-downloading."
+        Write-Info "Size mismatch — re-downloading: $($file.TargetPath)"
     }
 
     New-Item -ItemType Directory -Force -Path $destDir | Out-Null
-
     Write-Info "Downloading $(Format-Bytes $file.SizeBytes): $($file.Url)"
 
     try {
@@ -169,38 +174,31 @@ function Invoke-DirectDownload($file, [string]$modelsRoot) {
 }
 
 # ------------------------------------------------------------------------------
-# STRATEGY B: huggingface-cli download
-# Used for large Phi-3 ONNX blobs stored on Hugging Face Xet storage.
+# STRATEGY B: hf CLI download — large Phi-3 ONNX blobs (Xet-backed)
 #
 # Flow:
-#   1. huggingface-cli download <repo> --include "<pattern>" --local-dir <tempDir>
-#      Downloads the matched files preserving the HF subfolder tree.
-#   2. Copy <tempDir>/<HfSourceSubDir>/* into <modelsRoot>/<TargetPath>/
-#   3. Run ExpectedFiles validation against the target path.
+#   1. hf download <repo> --include "<pattern>" --local-dir <tempDir>
+#      Downloads files preserving the HF subfolder structure in <tempDir>.
+#   2. Copy <tempDir>/<HfSourceSubDir>/* → <modelsRoot>/<TargetPath>/
+#   3. Validate ExpectedFiles.
 #   4. Clean up <tempDir>.
 # ------------------------------------------------------------------------------
 
-function Invoke-HuggingFaceCLIDownload($model, [string]$modelsRoot) {
+function Invoke-HfDownload($model, [string]$modelsRoot) {
     $targetPath = Join-Path $modelsRoot $model.TargetPath
     $tempDir    = Join-Path $TempRoot  $model.Id
 
-    # Skip if all expected files are already present (and -Force not set)
+    # Skip if all ExpectedFiles already present (and -Force not set)
     if (-not $Force -and (Test-Path $targetPath)) {
-        $existing = Get-ChildItem $targetPath -File -Recurse
-        if ($existing.Count -gt 0) {
-            # Quick check: do all ExpectedFiles exist?
-            $allPresent = $true
-            foreach ($ef in $model.ExpectedFiles) {
-                if (-not (Test-Path (Join-Path $targetPath $ef))) {
-                    $allPresent = $false; break
-                }
-            }
-            if ($allPresent) {
-                Write-Skip "Already present: $($model.TargetPath)  ($($existing.Count) file(s))"
-                return $true
-            }
-            Write-Info "Some expected files missing from $($model.TargetPath) - re-downloading."
+        $allPresent = $true
+        foreach ($ef in $model.ExpectedFiles) {
+            if (-not (Test-Path (Join-Path $targetPath $ef))) { $allPresent = $false; break }
         }
+        if ($allPresent) {
+            Write-Skip "Already present: $($model.TargetPath)  (all expected files found)"
+            return $true
+        }
+        Write-Info "Some expected files missing — re-downloading: $($model.TargetPath)"
     }
 
     Write-Info "Repository:  $($model.HfRepo)"
@@ -208,54 +206,52 @@ function Invoke-HuggingFaceCLIDownload($model, [string]$modelsRoot) {
     Write-Info "Approx size: ~$(Format-Bytes $model.ApproximateSizeBytes)"
     Write-Info "Local path:  $($model.TargetPath)"
     Write-Host ""
-    Write-Info "Starting huggingface-cli download (this will take a while for large files)..."
+    Write-Info "Starting hf download — this will take several minutes for large files..."
+    Write-Host ""
 
     # Prepare directories
     if (Test-Path $tempDir) { Remove-Item $tempDir -Recurse -Force }
-    New-Item -ItemType Directory -Force -Path $tempDir  | Out-Null
+    New-Item -ItemType Directory -Force -Path $tempDir    | Out-Null
     New-Item -ItemType Directory -Force -Path $targetPath | Out-Null
 
-    # --- Run huggingface-cli ---
-    # Environment variables honoured transparently by huggingface-cli:
-    #   HF_TOKEN            - for private/gated repos (set via: huggingface-cli login)
-    #   HF_HUB_CACHE        - override cache location
-    #   HUGGINGFACE_HUB_VERBOSITY - set to "debug" for detailed transfer logs
+    # Run 'hf download'
+    # Environment variables transparently honoured:
+    #   HF_TOKEN       — set via 'hf login' for gated/private repos
+    #   HF_HUB_CACHE   — override the default cache location
+    $hfExitCode = 0
     try {
-        Write-Host ""
-        $hfExitCode = 0
-
-        huggingface-cli download `
+        hf download `
             $model.HfRepo `
             --include $model.HfIncludePattern `
             --local-dir $tempDir
 
         $hfExitCode = $LASTEXITCODE
     } catch {
-        Write-Fail "huggingface-cli threw an exception: $_"
+        Write-Fail "hf download threw an exception: $_"
         return $false
     }
 
     if ($hfExitCode -ne 0) {
-        Write-Fail "huggingface-cli exited with code $hfExitCode for repo: $($model.HfRepo)"
+        Write-Fail "hf download exited with code $hfExitCode"
         Write-Warn "Troubleshooting:"
-        Write-Warn "  - Check your internet connection to huggingface.co"
-        Write-Warn "  - If behind a proxy, set HTTPS_PROXY environment variable"
-        Write-Warn "  - For gated models, run: huggingface-cli login"
-        Write-Warn "  - Partial downloads are cached in: $tempDir"
+        Write-Warn "  - Check internet connectivity to huggingface.co"
+        Write-Warn "  - Behind a proxy? Set: `$env:HTTPS_PROXY = 'http://proxy:port'"
+        Write-Warn "  - For gated models: hf login"
+        Write-Warn "  - Partial cache preserved at: $tempDir"
         return $false
     }
 
-    # --- Copy from HF subfolder to our canonical target path ---
+    # Copy from HF subfolder into canonical target path
     $sourceSubDir = Join-Path $tempDir $model.HfSourceSubDir
 
     if (-not (Test-Path $sourceSubDir)) {
-        Write-Fail "Expected HF subfolder not found after download: $($model.HfSourceSubDir)"
+        Write-Fail "Expected HF subfolder not found: $($model.HfSourceSubDir)"
         Write-Warn "Actual temp dir contents:"
         Get-ChildItem $tempDir -Recurse | ForEach-Object {
             Write-Host "    $($_.FullName.Replace($tempDir, ''))" -ForegroundColor DarkGray
         }
-        Write-Warn "This usually means the HfIncludePattern matched nothing."
-        Write-Warn "Verify the path at: https://huggingface.co/$($model.HfRepo)/tree/main"
+        Write-Warn "Verify the path still exists at:"
+        Write-Warn "  https://huggingface.co/$($model.HfRepo)/tree/main"
         return $false
     }
 
@@ -264,23 +260,23 @@ function Invoke-HuggingFaceCLIDownload($model, [string]$modelsRoot) {
 
     $sourceFiles = Get-ChildItem $sourceSubDir -Recurse -File
     foreach ($f in $sourceFiles) {
-        $rel  = $f.FullName.Substring($sourceSubDir.Length).TrimStart('\','/')
+        $rel  = $f.FullName.Substring($sourceSubDir.Length).TrimStart('\', '/')
         $dest = Join-Path $targetPath $rel
         New-Item -ItemType Directory -Force -Path (Split-Path $dest -Parent) | Out-Null
         Copy-Item -Path $f.FullName -Destination $dest -Force
         Write-OK "$rel  ($(Format-Bytes $f.Length))"
     }
 
-    # --- Validate expected files ---
+    # Validate expected files
     Write-Host ""
     Write-Info "Validating expected files..."
     $valid = Test-ExpectedFiles -targetPath $targetPath -expectedFiles $model.ExpectedFiles
 
-    # --- Cleanup temp ---
+    # Clean up temp
     Remove-Item $tempDir -Recurse -Force -ErrorAction SilentlyContinue
 
     if ($sourceFiles.Count -eq 0) {
-        Write-Fail "No files were copied - something went wrong with the download."
+        Write-Fail "No files were copied. The HfIncludePattern matched nothing."
         return $false
     }
 
@@ -293,38 +289,35 @@ function Invoke-HuggingFaceCLIDownload($model, [string]$modelsRoot) {
 
 Write-Banner "DEVPILOT LOCAL AI MODEL DOWNLOAD SYSTEM"
 
-# Load and validate manifest
+# Validate manifest
 if (-not (Test-Path $ManifestPath)) {
     Write-Fail "model-manifest.json not found at: $ManifestPath"
-    Write-Fail "Run bootstrap.ps1 first, or verify your DevPilot/models directory."
+    Write-Fail "Run bootstrap.ps1 first or verify DevPilot/models/ exists."
     exit 1
 }
 
 $manifest = Get-Content $ManifestPath -Raw | ConvertFrom-Json
 
 if ($manifest.SchemaVersion -lt 2) {
-    Write-Fail "model-manifest.json is SchemaVersion $($manifest.SchemaVersion)."
-    Write-Fail "This script requires SchemaVersion 2. Please update model-manifest.json."
+    Write-Fail "model-manifest.json is SchemaVersion $($manifest.SchemaVersion). This script requires v2+."
     exit 1
 }
 
-# Check huggingface-cli only if we have entries that need it
-$hfModels = $manifest.Models | Where-Object { $_.DownloadMethod -eq "huggingface-cli" }
-if ($hfModels.Count -gt 0) {
-    Assert-HuggingFaceCLI
+# Only check hf CLI if we have entries that require it
+if ($manifest.Models | Where-Object { $_.DownloadMethod -eq "huggingface-cli" }) {
+    Assert-HfCLI
 }
 
-# Ensure working directories exist
 New-Item -ItemType Directory -Force -Path $ModelsRoot | Out-Null
 New-Item -ItemType Directory -Force -Path $TempRoot   | Out-Null
 
-$successCount  = 0
-$failCount     = 0
-$skippedCount  = 0
+$successCount = 0
+$failCount    = 0
+$skippedCount = 0
 
 foreach ($model in $manifest.Models) {
 
-    # For LLM entries, filter by the -Variant parameter
+    # Filter LLM variants
     if ($model.Category -eq "llm") {
         $wanted = $false
         foreach ($v in $Variant) {
@@ -339,9 +332,9 @@ foreach ($model in $manifest.Models) {
     }
 
     Write-Divider $model.Name
-    Write-Host "  Category : $($model.Category)" -ForegroundColor DarkGray
-    Write-Host "  Provider : $($model.Provider)"  -ForegroundColor DarkGray
-    Write-Host "  Method   : $($model.DownloadMethod)" -ForegroundColor DarkGray
+    Write-Host "  Category : $($model.Category)"        -ForegroundColor DarkGray
+    Write-Host "  Provider : $($model.Provider)"        -ForegroundColor DarkGray
+    Write-Host "  Method   : $($model.DownloadMethod)"  -ForegroundColor DarkGray
 
     $ok = $false
 
@@ -356,10 +349,10 @@ foreach ($model in $manifest.Models) {
             $ok = $allOk
         }
         "huggingface-cli" {
-            $ok = Invoke-HuggingFaceCLIDownload -model $model -modelsRoot $ModelsRoot
+            $ok = Invoke-HfDownload -model $model -modelsRoot $ModelsRoot
         }
         default {
-            Write-Fail "Unknown DownloadMethod '$($model.DownloadMethod)' on model '$($model.Id)'"
+            Write-Fail "Unknown DownloadMethod '$($model.DownloadMethod)' on '$($model.Id)'"
             $ok = $false
         }
     }
@@ -377,21 +370,19 @@ Write-Host ""
 
 if ($failCount -eq 0) {
     Write-Host "  SUCCESS: All models provisioned." -ForegroundColor Green
-    Write-Host ""
     Write-Host "  Results : $successCount downloaded, $skippedCount skipped, 0 failed" -ForegroundColor Gray
     Write-Host ""
     Write-Host "  Next step:" -ForegroundColor Cyan
     Write-Host "    .\scripts\validate-models.ps1" -ForegroundColor Yellow
 } else {
-    Write-Host "  PARTIAL: $successCount succeeded, $failCount failed, $skippedCount skipped." -ForegroundColor Yellow
+    Write-Host "  PARTIAL : $successCount succeeded, $failCount failed, $skippedCount skipped." -ForegroundColor Yellow
     Write-Host ""
-    Write-Host "  Troubleshooting:" -ForegroundColor Yellow
+    Write-Host "  Troubleshooting tips:" -ForegroundColor Yellow
     Write-Host "    1. Verify internet access to huggingface.co" -ForegroundColor DarkGray
-    Write-Host "    2. For proxy environments: set HTTPS_PROXY=http://your-proxy:port" -ForegroundColor DarkGray
-    Write-Host "    3. For gated models: run  huggingface-cli login" -ForegroundColor DarkGray
-    Write-Host "    4. Partial caches are in: DevPilot/cache/model-downloads/" -ForegroundColor DarkGray
-    Write-Host "    5. Re-run with -Force to nuke and retry a specific variant:" -ForegroundColor DarkGray
-    Write-Host "       .\scripts\download-models.ps1 -Variant cpu -Force" -ForegroundColor Yellow
+    Write-Host "    2. Proxy: set `$env:HTTPS_PROXY = 'http://your-proxy:port'" -ForegroundColor DarkGray
+    Write-Host "    3. Gated models: run  hf login" -ForegroundColor DarkGray
+    Write-Host "    4. Re-run a specific variant with -Force:" -ForegroundColor DarkGray
+    Write-Host "         .\scripts\download-models.ps1 -Variant cpu -Force" -ForegroundColor Yellow
 }
 
 Write-Host ""

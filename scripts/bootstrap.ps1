@@ -1,5 +1,13 @@
 # bootstrap.ps1
 # Main entry point for onboarding new developers to the DevPilot codebase.
+#
+# IMPORTANT: Run this from the REPO ROOT, not from inside the scripts/ folder.
+#
+#   Correct:   cd C:\path\to\DevPilot-repo
+#              .\scripts\bootstrap.ps1
+#
+#   Incorrect: cd C:\path\to\DevPilot-repo\scripts
+#              .\bootstrap.ps1   <-- $scriptPath resolves wrong for other scripts
 
 $ErrorActionPreference = "Stop"
 
@@ -22,55 +30,63 @@ try {
 }
 
 # ------------------------------------------------------------------------------
-# Step 2: Ensure huggingface-cli is available
-# Required for Phi-3 ONNX model downloads (Hugging Face Xet storage).
-# Skipped gracefully if Python is not installed - a warning is shown instead.
+# Step 2: Ensure the Hugging Face CLI ('hf') is available
+#
+# NOTE: The huggingface_hub package renamed its CLI from 'huggingface-cli'
+#       to 'hf' in recent releases. 'huggingface-cli' is fully deprecated
+#       and throws a NativeCommandError. All DevPilot scripts use 'hf'.
+#
+# This step is non-blocking: if Python is absent, a warning is shown and
+# bootstrap continues so that .NET / VS Code setup still completes.
 # ------------------------------------------------------------------------------
 Write-Host ""
-Write-Host "--> Step 2: Checking huggingface-cli for model downloads..." -ForegroundColor Gray
+Write-Host "--> Step 2: Checking Hugging Face CLI (hf) for model downloads..." -ForegroundColor Gray
 Write-Host "======================================================================" -ForegroundColor Cyan
 Write-Host "            DEVPILOT HUGGING FACE CLI CHECK" -ForegroundColor Cyan
 Write-Host "======================================================================" -ForegroundColor Cyan
 
 $hfAvailable = $false
 
-# Resolve python executable (handles both "python" and "python3" on PATH)
+# Resolve python executable (handles both 'python' and 'python3' on PATH)
 $pythonExe = $null
 foreach ($candidate in @("python", "python3")) {
-    $cmd = Get-Command $candidate -ErrorAction SilentlyContinue
-    if ($cmd) { $pythonExe = $cmd.Source; break }
+    $found = Get-Command $candidate -ErrorAction SilentlyContinue
+    if ($found) { $pythonExe = $found.Source; break }
 }
 
 if (-not $pythonExe) {
     Write-Host "[ WARN ] Python not found on PATH." -ForegroundColor Yellow
-    Write-Host "         huggingface-cli cannot be installed automatically." -ForegroundColor Yellow
+    Write-Host "         The 'hf' CLI cannot be installed automatically." -ForegroundColor Yellow
     Write-Host "         Phi-3 ONNX models will NOT download without it." -ForegroundColor Yellow
-    Write-Host "         Install Python 3.9+ from https://python.org" -ForegroundColor Yellow
-    Write-Host "         then re-run bootstrap.ps1, or run manually:" -ForegroundColor Yellow
-    Write-Host "             pip install huggingface_hub[cli]" -ForegroundColor Yellow
+    Write-Host "         Install Python 3.9+ from https://python.org then re-run bootstrap.ps1." -ForegroundColor Yellow
 } else {
-    # Check if already installed
-    $hfCmd = Get-Command "huggingface-cli" -ErrorAction SilentlyContinue
+    # Check for 'hf' (current CLI name)
+    $hfCmd = Get-Command "hf" -ErrorAction SilentlyContinue
+
     if ($hfCmd) {
-        $hfVer = (huggingface-cli --version 2>&1) | Select-Object -First 1
-        Write-Host "[ PASS ] huggingface-cli found: $hfVer" -ForegroundColor Green
+        # Capture version without letting a non-zero exit code kill the script
+        $hfVer = ""
+        try { $hfVer = (hf --version 2>&1) | Select-Object -First 1 } catch {}
+        Write-Host "[ PASS ] hf CLI found: $hfVer" -ForegroundColor Green
         $hfAvailable = $true
     } else {
-        Write-Host "[ INFO ] huggingface-cli not found - installing via pip..." -ForegroundColor Cyan
+        Write-Host "[ INFO ] hf CLI not found — installing via pip (huggingface_hub[cli])..." -ForegroundColor Cyan
         try {
             & $pythonExe -m pip install --quiet "huggingface_hub[cli]"
 
             # Refresh PATH in this session so the newly installed script is visible
-            $env:PATH = [System.Environment]::GetEnvironmentVariable("PATH","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("PATH","User")
+            $env:PATH = [System.Environment]::GetEnvironmentVariable("PATH", "Machine") + ";" +
+                        [System.Environment]::GetEnvironmentVariable("PATH", "User")
 
-            $hfCmd = Get-Command "huggingface-cli" -ErrorAction SilentlyContinue
+            $hfCmd = Get-Command "hf" -ErrorAction SilentlyContinue
             if ($hfCmd) {
-                $hfVer = (huggingface-cli --version 2>&1) | Select-Object -First 1
-                Write-Host "[ PASS ] huggingface-cli installed: $hfVer" -ForegroundColor Green
+                $hfVer = ""
+                try { $hfVer = (hf --version 2>&1) | Select-Object -First 1 } catch {}
+                Write-Host "[ PASS ] hf CLI installed successfully: $hfVer" -ForegroundColor Green
                 $hfAvailable = $true
             } else {
-                Write-Host "[ WARN ] huggingface-cli installed but not yet on PATH." -ForegroundColor Yellow
-                Write-Host "         Close and reopen this terminal, then re-run bootstrap.ps1." -ForegroundColor Yellow
+                Write-Host "[ WARN ] hf installed but not yet on PATH in this session." -ForegroundColor Yellow
+                Write-Host "         Close this terminal, reopen it, then re-run bootstrap.ps1." -ForegroundColor Yellow
             }
         } catch {
             Write-Host "[ WARN ] Auto-install failed: $_" -ForegroundColor Yellow
@@ -81,14 +97,15 @@ if (-not $pythonExe) {
 
 Write-Host "----------------------------------------------------------------------"
 if ($hfAvailable) {
-    Write-Host "SUCCESS: huggingface-cli is ready." -ForegroundColor Green
+    Write-Host "SUCCESS: Hugging Face CLI is ready." -ForegroundColor Green
 } else {
-    Write-Host "WARNING: huggingface-cli unavailable. Model downloads will fail." -ForegroundColor Yellow
-    Write-Host "         You can still proceed; fix this before running download-models.ps1." -ForegroundColor Yellow
+    Write-Host "WARNING: hf CLI unavailable. Model downloads will fail until resolved." -ForegroundColor Yellow
+    Write-Host "         Fix: pip install huggingface_hub[cli]" -ForegroundColor Yellow
+    Write-Host "         Continuing bootstrap so .NET and VS Code setup can complete..." -ForegroundColor DarkGray
 }
 
 # ------------------------------------------------------------------------------
-# Step 3: Configure local dev environment
+# Step 3: Configure local dev environment (.NET restore, npm, esbuild)
 # ------------------------------------------------------------------------------
 Write-Host ""
 Write-Host "--> Step 3: Configuring local dev environment..." -ForegroundColor Gray
@@ -112,9 +129,10 @@ Write-Host ""
 Write-Host "Here is how to start developing and testing DevPilot:"
 Write-Host ""
 Write-Host "  1. Download AI Models (run once after cloning):" -ForegroundColor White
-Write-Host "     .\scripts\download-models.ps1 -Variant cpu" -ForegroundColor Yellow
-Write-Host "     .\scripts\download-models.ps1 -Variant cuda       # NVIDIA GPU" -ForegroundColor Yellow
-Write-Host "     .\scripts\download-models.ps1 -Variant directml   # any DirectX 12 GPU" -ForegroundColor Yellow
+Write-Host "     From the repo root:" -ForegroundColor DarkGray
+Write-Host "     .\scripts\download-models.ps1 -Variant cpu        # CPU only (~2.3 GB)" -ForegroundColor Yellow
+Write-Host "     .\scripts\download-models.ps1 -Variant cuda       # NVIDIA GPU (~7.6 GB)" -ForegroundColor Yellow
+Write-Host "     .\scripts\download-models.ps1 -Variant directml   # any DirectX 12 GPU (~2.3 GB)" -ForegroundColor Yellow
 Write-Host ""
 Write-Host "  2. Start the Local API Service (port 5071):" -ForegroundColor White
 Write-Host "     dotnet run --project DevPilot/src/DevPilot.CLI/DevPilot.CLI.csproj service" -ForegroundColor Yellow
