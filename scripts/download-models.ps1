@@ -31,6 +31,10 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+# Force Python (used by hf CLI) to use UTF-8 console output encoding to prevent 'charmap' / UnicodeEncodeError crashes on Windows
+$env:PYTHONIOENCODING = "utf-8"
+$env:PYTHONUTF8 = "1"
+
 # ------------------------------------------------------------------------------
 # PATHS
 # ------------------------------------------------------------------------------
