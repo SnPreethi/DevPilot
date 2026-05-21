@@ -1,12 +1,13 @@
 {
-  "SchemaVersion": 1,
+  "SchemaVersion": 2,
   "Models": [
     {
       "Id": "all-mini-lm-l6-v2",
       "Name": "all-MiniLM-L6-v2 Vector Embeddings",
       "Provider": "Microsoft / Xenova",
       "Category": "embeddings",
-      "Description": "High-performance sentence embeddings model for code semantic search and context retrieval.",
+      "Description": "Sentence embeddings model for semantic code search and context retrieval.",
+      "DownloadMethod": "direct",
       "Files": [
         {
           "Type": "model",
@@ -26,71 +27,65 @@
     },
     {
       "Id": "phi-3-mini-cpu",
-      "Name": "Phi-3 Mini-4K Instruct (CPU Optimized)",
+      "Name": "Phi-3 Mini-4K Instruct (CPU)",
       "Provider": "Microsoft",
       "Category": "llm",
-      "Description": "Local LLM variant quantized with INT4 RTN quantization and optimized for high-efficiency CPU inference.",
-      "Files": [
-        {
-          "Type": "model",
-          "Url": "https://huggingface.co/microsoft/Phi-3-mini-4k-instruct-onnx/resolve/main/cpu_and_mobile/cpu-int4-rtn-block-32-acc-level-4/phi3-mini-4k-instruct-cpu-int4-rtn-block-32.onnx",
-          "TargetPath": "llm/phi-3-mini/cpu/model.onnx",
-          "SizeBytes": 2184000000,
-          "Sha256": "6b7d2e071727cc621e25ba40989f5bc3e28406f3e2e718b528b3e28cbf3480f2"
-        },
-        {
-          "Type": "tokenizer",
-          "Url": "https://huggingface.co/microsoft/Phi-3-mini-4k-instruct-onnx/resolve/main/cpu_and_mobile/cpu-int4-rtn-block-32-acc-level-4/tokenizer.model",
-          "TargetPath": "llm/phi-3-mini/cpu/tokenizer.model",
-          "SizeBytes": 500000,
-          "Sha256": "6b7d2e071727cc621e25ba40989f5bc3e28406f3e2e718b528b3e28cbf3480f3"
-        }
+      "Description": "INT4 RTN block-32 quantized model for CPU inference via ONNX Runtime GenAI.",
+      "DownloadMethod": "huggingface-cli",
+      "HfRepo": "microsoft/Phi-3-mini-4k-instruct-onnx",
+      "HfIncludePattern": "cpu_and_mobile/cpu-int4-rtn-block-32/*",
+      "HfSourceSubDir": "cpu_and_mobile/cpu-int4-rtn-block-32",
+      "TargetPath": "llm/phi-3-mini/cpu",
+      "ApproximateSizeBytes": 2300000000,
+      "ExpectedFiles": [
+        "phi3-mini-4k-instruct-cpu-int4-rtn-block-32.onnx",
+        "phi3-mini-4k-instruct-cpu-int4-rtn-block-32.onnx.data",
+        "config.json",
+        "generation_config.json",
+        "special_tokens_map.json",
+        "tokenizer_config.json"
       ]
     },
     {
       "Id": "phi-3-mini-cuda",
-      "Name": "Phi-3 Mini-4K Instruct (CUDA GPU Optimized)",
+      "Name": "Phi-3 Mini-4K Instruct (CUDA FP16)",
       "Provider": "Microsoft",
       "Category": "llm",
-      "Description": "Local LLM variant optimized with FP16 weights targeting NVIDIA CUDA GPUs for blazing-fast inference.",
-      "Files": [
-        {
-          "Type": "model",
-          "Url": "https://huggingface.co/microsoft/Phi-3-mini-4k-instruct-onnx/resolve/main/gpu/gpu-int4-rtn-block-32-onnx/phi3-mini-4k-instruct-gpu-int4-rtn-block-32.onnx",
-          "TargetPath": "llm/phi-3-mini/cuda/model.onnx",
-          "SizeBytes": 2184000000,
-          "Sha256": "7b7d2e071727cc621e25ba40989f5bc3e28406f3e2e718b528b3e28cbf3480f4"
-        },
-        {
-          "Type": "tokenizer",
-          "Url": "https://huggingface.co/microsoft/Phi-3-mini-4k-instruct-onnx/resolve/main/gpu/gpu-int4-rtn-block-32-onnx/tokenizer.model",
-          "TargetPath": "llm/phi-3-mini/cuda/tokenizer.model",
-          "SizeBytes": 500000,
-          "Sha256": "7b7d2e071727cc621e25ba40989f5bc3e28406f3e2e718b528b3e28cbf3480f5"
-        }
+      "Description": "FP16 model optimized for NVIDIA GPU inference via ONNX Runtime GenAI.",
+      "DownloadMethod": "huggingface-cli",
+      "HfRepo": "microsoft/Phi-3-mini-4k-instruct-onnx",
+      "HfIncludePattern": "cuda/cuda-fp16/*",
+      "HfSourceSubDir": "cuda/cuda-fp16",
+      "TargetPath": "llm/phi-3-mini/cuda",
+      "ApproximateSizeBytes": 7600000000,
+      "ExpectedFiles": [
+        "phi3-mini-4k-instruct-cuda-fp16.onnx",
+        "phi3-mini-4k-instruct-cuda-fp16.onnx.data",
+        "config.json",
+        "genai_config.json",
+        "special_tokens_map.json",
+        "tokenizer_config.json"
       ]
     },
     {
       "Id": "phi-3-mini-directml",
-      "Name": "Phi-3 Mini-4K Instruct (DirectML Windows Optimized)",
+      "Name": "Phi-3 Mini-4K Instruct (DirectML)",
       "Provider": "Microsoft",
       "Category": "llm",
-      "Description": "Local LLM variant optimized targeting DirectML, accelerating on any DirectX 12 compatible Windows GPU.",
-      "Files": [
-        {
-          "Type": "model",
-          "Url": "https://huggingface.co/microsoft/Phi-3-mini-4k-instruct-onnx/resolve/main/gpu/gpu-int4-rtn-block-32-onnx/phi3-mini-4k-instruct-gpu-int4-rtn-block-32.onnx",
-          "TargetPath": "llm/phi-3-mini/directml/model.onnx",
-          "SizeBytes": 2184000000,
-          "Sha256": "8b7d2e071727cc621e25ba40989f5bc3e28406f3e2e718b528b3e28cbf3480f6"
-        },
-        {
-          "Type": "tokenizer",
-          "Url": "https://huggingface.co/microsoft/Phi-3-mini-4k-instruct-onnx/resolve/main/gpu/gpu-int4-rtn-block-32-onnx/tokenizer.model",
-          "TargetPath": "llm/phi-3-mini/directml/tokenizer.model",
-          "SizeBytes": 500000,
-          "Sha256": "8b7d2e071727cc621e25ba40989f5bc3e28406f3e2e718b528b3e28cbf3480f7"
-        }
+      "Description": "INT4 AWQ block-128 quantized model for DirectML on any DirectX 12 GPU (AMD, Intel, NVIDIA).",
+      "DownloadMethod": "huggingface-cli",
+      "HfRepo": "microsoft/Phi-3-mini-4k-instruct-onnx",
+      "HfIncludePattern": "directml/directml-int4-awq-block-128/*",
+      "HfSourceSubDir": "directml/directml-int4-awq-block-128",
+      "TargetPath": "llm/phi-3-mini/directml",
+      "ApproximateSizeBytes": 2300000000,
+      "ExpectedFiles": [
+        "model.onnx",
+        "model.onnx.data",
+        "config.json",
+        "genai_config.json",
+        "special_tokens_map.json",
+        "tokenizer_config.json"
       ]
     }
   ]
