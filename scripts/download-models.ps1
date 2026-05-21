@@ -6,8 +6,8 @@
 #  Reads model-manifest.json (SchemaVersion 2) and provisions all AI models.
 #
 #  Two download strategies:
-#    "direct"          — Invoke-WebRequest for small CDN-hosted files (MiniLM)
-#    "huggingface-cli" — 'hf' CLI for large ONNX blobs (Phi-3, Xet-backed)
+#    "direct"          - Invoke-WebRequest for small CDN-hosted files (MiniLM)
+#    "huggingface-cli" - 'hf' CLI for large ONNX blobs (Phi-3, Xet-backed)
 #
 #  NOTE: The Hugging Face CLI was renamed from 'huggingface-cli' to 'hf'.
 #        This script uses 'hf' exclusively. If 'hf' is not found, run:
@@ -83,7 +83,7 @@ function Assert-HfCLI {
         return
     }
 
-    Write-Warn "'hf' CLI not found — attempting pip install..."
+    Write-Warn "'hf' CLI not found - attempting pip install..."
 
     $pip = Get-Command "pip"  -ErrorAction SilentlyContinue
     if (-not $pip) { $pip = Get-Command "pip3" -ErrorAction SilentlyContinue }
@@ -104,8 +104,7 @@ function Assert-HfCLI {
     }
 
     # Refresh PATH in this session
-    $env:PATH = [System.Environment]::GetEnvironmentVariable("PATH", "Machine") + ";" +
-                [System.Environment]::GetEnvironmentVariable("PATH", "User")
+    $env:PATH = [System.Environment]::GetEnvironmentVariable("PATH", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("PATH", "User")
 
     if (-not (Get-Command "hf" -ErrorAction SilentlyContinue)) {
         Write-Warn "hf CLI installed but not yet on PATH in this session."
@@ -142,7 +141,7 @@ function Test-ExpectedFiles([string]$targetPath, [string[]]$expectedFiles) {
 }
 
 # ------------------------------------------------------------------------------
-# STRATEGY A: Direct HTTP — small CDN-backed files (MiniLM vocab, model.onnx)
+# STRATEGY A: Direct HTTP - small CDN-backed files (MiniLM vocab, model.onnx)
 # ------------------------------------------------------------------------------
 
 function Invoke-DirectDownload($file, [string]$modelsRoot) {
@@ -155,7 +154,7 @@ function Invoke-DirectDownload($file, [string]$modelsRoot) {
             Write-Skip "Already present: $($file.TargetPath)  ($(Format-Bytes $actual))"
             return $true
         }
-        Write-Info "Size mismatch — re-downloading: $($file.TargetPath)"
+        Write-Info "Size mismatch - re-downloading: $($file.TargetPath)"
     }
 
     New-Item -ItemType Directory -Force -Path $destDir | Out-Null
@@ -174,12 +173,12 @@ function Invoke-DirectDownload($file, [string]$modelsRoot) {
 }
 
 # ------------------------------------------------------------------------------
-# STRATEGY B: hf CLI download — large Phi-3 ONNX blobs (Xet-backed)
+# STRATEGY B: hf CLI download - large Phi-3 ONNX blobs (Xet-backed)
 #
 # Flow:
 #   1. hf download <repo> --include "<pattern>" --local-dir <tempDir>
 #      Downloads files preserving the HF subfolder structure in <tempDir>.
-#   2. Copy <tempDir>/<HfSourceSubDir>/* → <modelsRoot>/<TargetPath>/
+#   2. Copy <tempDir>/<HfSourceSubDir>/* -> <modelsRoot>/<TargetPath>/
 #   3. Validate ExpectedFiles.
 #   4. Clean up <tempDir>.
 # ------------------------------------------------------------------------------
@@ -198,7 +197,7 @@ function Invoke-HfDownload($model, [string]$modelsRoot) {
             Write-Skip "Already present: $($model.TargetPath)  (all expected files found)"
             return $true
         }
-        Write-Info "Some expected files missing — re-downloading: $($model.TargetPath)"
+        Write-Info "Some expected files missing - re-downloading: $($model.TargetPath)"
     }
 
     Write-Info "Repository:  $($model.HfRepo)"
@@ -206,7 +205,7 @@ function Invoke-HfDownload($model, [string]$modelsRoot) {
     Write-Info "Approx size: ~$(Format-Bytes $model.ApproximateSizeBytes)"
     Write-Info "Local path:  $($model.TargetPath)"
     Write-Host ""
-    Write-Info "Starting hf download — this will take several minutes for large files..."
+    Write-Info "Starting hf download - this will take several minutes for large files..."
     Write-Host ""
 
     # Prepare directories
@@ -216,8 +215,8 @@ function Invoke-HfDownload($model, [string]$modelsRoot) {
 
     # Run 'hf download'
     # Environment variables transparently honoured:
-    #   HF_TOKEN       — set via 'hf login' for gated/private repos
-    #   HF_HUB_CACHE   — override the default cache location
+    #   HF_TOKEN       - set via 'hf login' for gated/private repos
+    #   HF_HUB_CACHE   - override the default cache location
     $hfExitCode = 0
     try {
         hf download `

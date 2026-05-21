@@ -70,13 +70,12 @@ if (-not $pythonExe) {
         Write-Host "[ PASS ] hf CLI found: $hfVer" -ForegroundColor Green
         $hfAvailable = $true
     } else {
-        Write-Host "[ INFO ] hf CLI not found — installing via pip (huggingface_hub[cli])..." -ForegroundColor Cyan
+        Write-Host "[ INFO ] hf CLI not found - installing via pip (huggingface_hub[cli])..." -ForegroundColor Cyan
         try {
             & $pythonExe -m pip install --quiet "huggingface_hub[cli]"
 
             # Refresh PATH in this session so the newly installed script is visible
-            $env:PATH = [System.Environment]::GetEnvironmentVariable("PATH", "Machine") + ";" +
-                        [System.Environment]::GetEnvironmentVariable("PATH", "User")
+            $env:PATH = [System.Environment]::GetEnvironmentVariable("PATH", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("PATH", "User")
 
             $hfCmd = Get-Command "hf" -ErrorAction SilentlyContinue
             if ($hfCmd) {
