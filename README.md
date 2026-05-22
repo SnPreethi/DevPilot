@@ -1,194 +1,215 @@
 # *DEVPILOT*
 
-Offline-capable local AI-engineering assistant for software developers on Windows operating system.
+Local-first development assistant for repository indexing, semantic search, and workflow-aware code analysis on Windows.
 
 [![.NET](https://img.shields.io/badge/.NET-8.0-blue)](https://dotnet.microsoft.com/download)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue)](https://www.typescriptlang.org/)
 
-DevPilot is an offline development assistant to index, search, and refactor code directly on the local machine. By executing quantized ONNX models via ONNX Runtime and DirectML, it provides codebase-aware semantic search, symbol tracking, and automated diagnostics analysis without sending proprietary code to external APIs or requiring internet connectivity.
+DevPilot is an experimental local development assistant designed to run entirely on one's machine. It combines repository indexing, semantic search, ONNX-based local inference, diagnostics analysis, and workflow execution into a single offline-capable system without requiring remote LLM APIs.
 
 ---
 
 ## WHY DEVPILOT EXISTS
 
-Most modern AI coding assistants are built as wrapper interfaces around remote, cloud-hosted large language models. While highly capable, this architecture introduces practical challenges:
+Most AI coding assistants rely on remote hosted models. While effective, that architecture introduces practical limitations for local development workflows:
 
-* **a. Intellectual Property and Privacy**: Sending proprietary, commercial codebases to third-party endpoints is often prohibited by corporate security policies.
-* **b. Lack of Local Context**: Cloud APIs do not have access to the local execution environment, making it difficult to verify compile states, parse test diagnostics, or coordinate multi-step repair workflows.
-* **c. Network Dependency**: Intermittent internet access or API latency disrupts developer velocity.
+- Proprietary repositories may not be allowed outside local environments.
+- Cloud APIs do not have direct visibility into local build state, test execution, or runtime diagnostics.
+- Network availability and API latency interrupt local engineering workflows.
 
-DevPilot explores a different design point: a fully offline engineering assistant that runs quantized models locally, utilizes local hardware acceleration (DirectML/CUDA), integrates with the local compiler and test runners, and coordinates non-destructive development workflows entirely on the local machine.
+DevPilot explores a different approach:
+
+- local inference
+- repository-aware indexing
+- local workflow execution
+- diagnostics-aware reasoning
+- developer-supervised patch workflows
 
 The project started from a simple idea:
 
-> "What if an AI coding assistant could understand a repository, run builds/tests locally, and safely coordinate engineering workflows without internet and without sending proprietary code to external servers?"
-
-DevPilot is an attempt to explore that idea.
+> What if a local development assistant could understand a repository, analyze failures, and coordinate safe engineering workflows without sending source code to external services?
 
 ---
 
 ## CURRENT CAPABILITIES
 
-### 1. Repository Intelligence
-* Parallel codebase indexing
-* AST-aware code chunking
-* Symbol-aware metadata extraction
-* Cross-file relationship mapping
-* Semantic vector search over local codebases
+### Repository Intelligence
 
-### 2. Local AI Inference
-* ONNX Runtime execution
-* DirectML GPU acceleration
-* CUDA GPU acceleration
-* CPU fallback support
-* Local embedding generation
-* Local Phi-3 inference pipeline
-* Streaming token responses
+- Parallel repository indexing
+- AST-aware code chunking
+- Symbol-aware metadata extraction
+- Cross-file relationship mapping
+- Semantic vector search over local repositories
 
-### 3. Developer Workflows & Orchestration
-* Engineering workflow orchestration
-* Task graph execution
-* Dry-run validation
-* Rollback-safe patching
-* Execution pipelines
-* Persistent workflow state
+### Local Inference
 
-### 4. IDE Integration
-* VS Code sidebar integration
-* Diagnostics-aware prompts
-* Terminal failure analysis
-* Quick-fix generation
-* Selection-aware reasoning
-* Interactive relationship viewer
+- ONNX Runtime execution
+- DirectML acceleration
+- CUDA acceleration
+- CPU fallback support
+- Local embedding generation
+- Phi-3 ONNX inference pipeline
+- Streaming token responses
 
-### 5. Local Execution Awareness
-* Build failure parsing
-* Stack trace analysis
-* Test execution awareness
-* Runtime diagnostics
-* Context-aware repair planning
+### Workflow Execution
 
-### 6. Persistent Workspace Memory
-* SQLite-backed memory store
-* Architectural convention tracking
-* Repository modernization memory
-* Persistent execution history
+- Validation-gated execution pipelines
+- Dry-run workflow validation
+- Rollback-aware patch execution
+- Persistent workflow checkpoints
+- Diagnostics-aware repair planning
 
----
+### IDE Integration
 
-## TECHNOLOGY STACK
+- VS Code sidebar extension
+- Selection-aware repository reasoning
+- Terminal failure analysis
+- Interactive relationship viewer
+- Context-aware repository prompts
 
-* **Programming Languages**: C#, TypeScript, HTML, CSS
-* **Runtime Frameworks**: .NET 8.0 SDK, Node.js (v18+)
-* **Local Inference Engines**: ONNX Runtime, ONNX Runtime GenAI
-* **Local LLM Models**: Phi-3-mini-4k-instruct-onnx (Quantized INT4 CPU/DirectML and CUDA FP16 variants)
-* **Local Embedding Models**: all-MiniLM-L6-v2 (Xenova / ONNX format)
-* **Data Storage & Orchestration**: SQLite (System.Data.SQLite, Microsoft.Data.Sqlite)
-* **Desktop UI Platform**: WinUI 3, Windows App SDK
-* **IDE Extension Platform**: VS Code Extension API
-* **Web Service Engine**: ASP.NET Core (Kestrel Web Server)
-* **Build Systems & Tooling**: MSBuild, NuGet, npm, esbuild, TypeScript Compiler (tsc)
-* **Test Suites & Runners**: xUnit Test Framework, FluentAssertions, Microsoft.NET.Test.Sdk
-* **Scripting & Automation**: PowerShell (pwsh)
-* **Version Control**: Git
-* **Development & Build PC Configuration**: Windows 11 Pro, 13th Gen Intel Core i9 processor, 64 GB RAM, NVIDIA GeForce RTX 4080 with 16 GB VRAM, IntelUHD Graphics 770 with DirectX 12 DirectML support.
+### Runtime Awareness
+
+- Build failure parsing
+- Stack trace analysis
+- Test execution awareness
+- Runtime diagnostics collection
+- Local execution context tracking
 
 ---
 
 ## ARCHITECTURE OVERVIEW
 
-DevPilot separates the interface from the local computation engine. The VS Code extension acts as a lightweight client that communicates with a local Kestrel Web API service executing on port `5071`.
+DevPilot separates the interface layer from the local execution runtime.
+
+```text
+VS Code Extension
+        ↓
+Local Service (Kestrel)
+        ↓
+Repository Indexing + Workflow Engine
+        ↓
+SQLite + ONNX Runtime
+        ↓
+Local Models (Embeddings + Phi-3)
+```
+
+The VS Code extension acts as a lightweight client that communicates with a local service running on port `5071`.
+
+### Core Components
+
+- **Local Service** — Coordinates indexing, workflows, diagnostics, and inference.
+- **Repository Indexer** — Builds repository-aware semantic metadata inside SQLite.
+- **Workflow System** — Executes validation-aware patch workflows and rollback checkpoints.
+- **Local AI Runtime** — Loads embedding and generative ONNX models locally through ONNX Runtime.
+
 <br>
 
-<center>
-<img src="assets/devpilot_architecture_visual.png" width="500" alt="DevPilot System Architecture" />
-</center>
-
-<br>
-
-* **DevPilot CLI & Kestrel Service**: A lightweight C# Kestrel web API that coordinates workspace indexing, database management, and local LLM execution.
-* **Repository Indexer**: A parallel codebase scanner that builds a semantic map of your project in a local SQLite database.
-* **Workflows Engine**: Orchestrates execution pipelines, generates localized code patches, and runs compiler-checked validation steps.
-* **Local AI Service**: Direct interface to ONNX Runtime, loading embedding and generative models locally onto your CPU or GPU.
+<img src="assets/devpilot_architecture_visual.png" width="500" alt="DevPilot Architecture"/>
 
 
 ### VS Code Sidebar Integration
-The TypeScript sidebar extension provides a lightweight, conversational interface with repository-grounded citations and context tracking.
-<center>
+
+The TypeScript extension provides repository-aware interactions directly inside VS Code.
+
 <img src="assets/devpilot_UI.png" width="800" alt="DevPilot Interface" />
-</center>
 
 ### Workflow Execution Pipelines
-The C# workflow engine executes modernization and patching operations in distinct task graphs, verifying the system compile state at every step.
-<center>
-<img src="assets/devpilot_workflow_pipeline.png" width="500" alt="Workflow Execution Pipeline" />
-</center>
 
+Execution pipelines validate repository state before applying modifications.
+
+<img src="assets/devpilot_workflow_pipeline.png" width="500" alt="Workflow Execution Pipeline" />
+
+---
+
+## TECHNOLOGY STACK
+
+* **Backend**: .NET 8, ASP.NET Core, SQLite
+* **AI Runtime**: ONNX Runtime, DirectML, Phi-3-mini
+* **IDE Integration**: VS Code Extension API, TypeScript
+* **Desktop UI**: WinUI 3
+* **Tooling**: PowerShell, MSBuild, npm
 
 ---
 
 ## QUICK START
 
 ### 1. Prerequisites
-Ensure the following are installed on your Windows machine:
-* **Operating System**: Windows 10 or 11
-* **Runtime**: [.NET 8.0 SDK](https://dotnet.microsoft.com/download)
-* **Environment**: [Node.js v18+](https://nodejs.org)
-* **Python**: [Python 3.9+](https://python.org) (required for the Hugging Face CLI, which downloads the Phi-3 ONNX models — the bootstrap script installs the CLI automatically if Python is on PATH)
-* **IDE**: [VS Code](https://code.visualstudio.com)
-* **Version Control**: [Git](https://git-scm.com)
 
-**Optional (for GPU-accelerated model variants):**
-* **NVIDIA CUDA**: [CUDA Toolkit 12.x](https://developer.nvidia.com/cuda-downloads) + [cuDNN 9.x](https://developer.nvidia.com/cudnn) — required only if downloading and running the `cuda` (FP16) model variant (ONNX Runtime Gpu 1.26.0 requires CUDA 12.x and cuDNN 9.x)
-* **DirectML**: Ships with Windows 10/11 on DirectX 12 capable GPUs — no manual install needed for the `directml` model variant
+- Windows 10 or 11
+- [.NET 8 SDK](https://dotnet.microsoft.com/download)
+- [Node.js v18+](https://nodejs.org)
+- [Python 3.9+](https://python.org)
+- [VS Code](https://code.visualstudio.com)
+- [Git](https://git-scm.com)
+
+Optional:
+
+- NVIDIA CUDA Toolkit 12.x + cuDNN 9.x (CUDA model variant)
+- DirectX 12 compatible GPU (DirectML acceleration)
 
 > [!NOTE]
 > The CPU model variant works out of the box with no additional GPU setup. CUDA and DirectML are only needed if you choose to download those specific model variants via `.\scripts\download-models.ps1 -Variant cuda` or `-Variant directml`.
 
 After ensuring the above prerequisites are met, run the following commands in PowerShell.
 
+
 ### 2. Clone the Repository
+
 ```powershell
 git clone https://github.com/SnPreethi/DevPilot.git
 cd DevPilot
 ```
 
-### 3. Bootstrap the Environment
-Initialize local runtime paths, restore .NET NuGet dependencies, install Node packages, and bundle the extension:
+### 3. Bootstrap the Workspace
+
 ```powershell
-# run this command from the root folder (run in DevPilot level)
 .\scripts\bootstrap.ps1
 ```
 
+This restores:
+
+- .NET dependencies
+- Node dependencies
+- VS Code extension assets
+- local runtime directories
+
+
 ### 4. Provision Local AI Models
-Download Xenova all-MiniLM embeddings and the instruction-tuned Phi-3-mini ONNX models:
+
 ```powershell
-# Default downloads all variants (CPU, CUDA, DirectML)
+# Download all model variants (CPU, CUDA, DirectML)
 .\scripts\download-models.ps1
 
-# Or specify a single variant (e.g. CPU or DirectML):
+# Download specific model variant
 .\scripts\download-models.ps1 -Variant cpu
 ```
 
-### 5. Validate Runtime Files
-Ensure all downloaded ONNX models, graphs, weights, and tokenizer files are intact and verified:
+### 5. Validate Runtime Assets
+
 ```powershell
 .\scripts\validate-models.ps1
 ```
 
-### 6. Start the Local API Service
-Spin up the background service (port `5071`) which manages index requests, local embedding generation, and LLM inference:
+This script ensures all downloaded ONNX models, graphs, weights, and tokenizer files are intact and verified.
+
+### 6. Start the Local Service
+
 ```powershell
 dotnet run --project DevPilot/src/DevPilot.CLI/DevPilot.CLI.csproj service
 ```
 
-### 7. Launch the VS Code Extension
-Open the extension client folder in VS Code, and launch the sandboxed developer environment:
-1. Open the folder `DevPilot.VSCodeExtension` in VS Code.
-2. Press **`F5`** to launch a sandboxed Extension Host.
-3. Click the DevPilot icon in the left Activity Bar to begin.
+Expected result:
 
-<br>
+- Local service starts on port `5071`
+- Runtime validation completes successfully
+- VS Code extension can connect locally
+
+### 7. Launch the VS Code Extension
+
+1. Open `DevPilot.VSCodeExtension` folder in VS Code.
+2. Press `F5` to launch the sandboxed Extension Host.
+3. Open the DevPilot side-panel from the Activity Bar in the left.
+
 
 > **NOTE** - To begin indexing your codebase, running semantic queries, and executing interactive workflows, please refer to the step-by-step guides in the ***docs/*** directory.
 
@@ -197,63 +218,92 @@ Open the extension client folder in VS Code, and launch the sandboxed developer 
 ## REPOSITORY STRUCTURE
 
 ```text
-├── DevPilot/                        # Primary C# Backend Engine
-│   ├── src/                         # Core codebase (AI, Indexer, RAG, Storage, UI, CLI)
-│   ├── tests/                       # xUnit test suites
-│   ├── data/                        # Local SQLite databases (active state)
-│   ├── models/                      # Quantized ONNX weights & manifests
-│   ├── cache/                       # Temporary operational caching
-│   └── logs/                        # Diagnostics and execution logs
-├── DevPilot.VSCodeExtension/        # TypeScript VS Code Sidebar client
-├── scripts/                         # Setup, bootstrap, and provisioning scripts
-├── docs/                            # Deep-dive architecture and design guides
-└── README.md                        # Primary documentation
+├── DevPilot/
+│   ├── src/                # Backend services and runtime components
+│   ├── tests/              # xUnit test suites
+│   ├── models/             # Local ONNX models and manifests
+│   ├── data/               # SQLite runtime databases
+│   ├── cache/              # Runtime caches
+│   └── logs/               # Local diagnostics logs
+│
+├── DevPilot.VSCodeExtension/   # VS Code extension client
+├── scripts/                    # Bootstrap and provisioning scripts
+├── docs/                       # Architecture and operational guides
+└── README.md
 ```
 
 ---
 
 ## OFFLINE-FIRST PHILOSOPHY
 
-DevPilot operates entirely on your physical machine. By refusing to connect to remote APIs:
-* **Zero Code Exfiltration**: Your source code, workspace structures, and local queries never leave your system.
-* **Hermetic Environment**: Indexing, semantic embedding generation, vector distance calculations, and LLM inference run strictly within local process boundaries.
-* **Low Latency & High Privacy**: Eliminates external API token pricing, rate limits, and network latency while guaranteeing full developer privacy.
+DevPilot is designed to operate entirely on the local machine.
+
+- Repository data remains local.
+- Semantic indexing runs locally.
+- ONNX inference executes locally.
+- SQLite persistence remains local.
+- No cloud APIs are required.
+
+This allows:
+
+- offline operation
+- lower latency
+- repository privacy
+- reproducible local workflows
 
 ---
 
 ## CURRENT LIMITATIONS
 
-DevPilot is an experimental platform under active development. Consider these current constraints:
-* **Windows-Focused**: Runtimes, hardware-accelerated DirectML configurations, and WinUI assets are engineered primarily for Windows 10 and 11 environments.
-* **Model Size Footprint**: Quantized local models require roughly ~2.3 GB of disk space for the CPU/DirectML variants and ~7.6 GB for CUDA FP16, alongside suitable system RAM/VRAM.
-* **Performance Variance**: Local inference speeds depend heavily on your local GPU capabilities. CPU fallback is functional but yields lower token generation velocities.
-* **Evolving Abstractions**: Workflows, patch engines, and rollback mechanics are experimental and should be monitored during multi-step workspace operations.
+DevPilot is still experimental and under active development.
+
+Current constraints include:
+
+- Windows-focused runtime and packaging
+- Large local model storage requirements
+- Variable inference performance depending on hardware
+- Experimental workflow and rollback systems
+- Evolving orchestration abstractions
 
 ---
 
 ## ROADMAP
 
-### Current Refinements
-* Improve indexing performance for large repositories (50k+ files)
-* Stabilize WinUI 3 desktop packaging and MSIX installer generation
-* Harden rollback-safe patching across multi-file edit sequences
-* Improve token budget allocation and context pruning accuracy
-* Reduce cold-start latency for first-time ONNX model loading
-* Expand xUnit test coverage across RAG, Storage, and Workflow layers
+### Current Focus
+
+- Improve indexing stability for large repositories
+- Expand runtime validation coverage
+- Improve workflow rollback reliability
+- Reduce ONNX cold-start latency
+- Improve test coverage across runtime components
+- Stabilize WinUI packaging and installer workflows
 
 ### Planned Integrations
-* **Microsoft Foundry**: Integrate with Azure AI Foundry for optional hybrid local/cloud model orchestration when offline constraints are relaxed
-* **Windows ML**: Migrate select inference workloads to the Windows ML runtime for tighter OS-level hardware scheduling and session management
-* **Windows APIs**: Leverage native Windows APIs (Windows.AI, WinRT) for system-level acceleration, notification integration, and background task coordination
-* **Visual Studio Integration**: Extend IDE support beyond VS Code to Visual Studio 2022 via VSIX extension
-* **Language Server Protocol (LSP)**: Implement an LSP server for editor-agnostic inline completions and diagnostics
 
-### Future Scope
-* Cross-platform execution environments for macOS (Metal) and Linux (ROCm/Vulkan)
-* Multi-agent orchestration with specialized task delegation across planning, patching, and validation agents
-* Deeper AST-graph traversal for richer symbol-relation context during repository search
-* Persistent engineering memory graphs that carry learned conventions across repositories
-* Distributed local inference across multiple machines on a local network
-* Support for additional quantized model families beyond Phi-3
+- Visual Studio integration
+- Language Server Protocol (LSP) support
+- Optional Azure AI Foundry hybrid workflows
+- Windows ML runtime exploration
+- Additional ONNX model families
+
+### Long-Term Exploration
+
+- Cross-platform runtime support
+- Distributed local inference
+- Expanded repository relationship analysis
+- Multi-agent workflow coordination experiments
+
+---
+
+## DOCUMENTATION
+
+Additional documentation is available in the `docs/` directory:
+
+- `architecture.md`
+- `setup.md`
+- `demo-guide.md`
+- `troubleshooting.md`
+- `workflows.md`
+- `roadmap.md`
 
 ---
